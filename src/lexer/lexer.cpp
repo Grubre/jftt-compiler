@@ -60,11 +60,11 @@ auto Lexer::chop_while(std::function<bool(char)> predicate) -> std::string {
 }
 
 auto Lexer::peek() -> std::optional<char> {
-    if (current_index >= source.size()) {
+    if (current_index + 1 >= source.size()) {
         return std::nullopt;
     }
 
-    return source[current_index];
+    return source[current_index + 1];
 }
 
 void Lexer::trim_whitespace() {
@@ -139,7 +139,7 @@ auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
             return tl::unexpected(Error{
                 "Lexer",
                 std::format("Unexpected character: Expected '!=', found '!{}'",
-                            c),
+                            chop(1)),
                 line_number, column_number});
         }
     case '>':
@@ -166,7 +166,11 @@ auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
         if (peek() == '=') {
             return make_token(TokenType::Walrus, chop(2));
         } else {
-            return make_token(TokenType::Colon, chop(1));
+            return tl::unexpected(Error{
+                "Lexer",
+                std::format("Unexpected character: Expected ':=', found ':{}'",
+                            chop(1)),
+                line_number, column_number});
         }
     case ';':
         return make_token(TokenType::Semicolon, chop(1));

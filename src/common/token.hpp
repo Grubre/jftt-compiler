@@ -21,7 +21,6 @@ enum TokenType {
     Rbracket,
     Walrus,
     Semicolon,
-    Colon,
     Procedure,
     Is,
     In,
@@ -44,7 +43,8 @@ struct Token {
     unsigned line;
     unsigned column;
 
-    auto operator==(const Token& other) const -> bool {
-        return token_type == other.token_type && lexeme == other.lexeme && line == other.line && column == other.column;
+    auto operator==(const Token &other) const -> bool {
+        return token_type == other.token_type && lexeme == other.lexeme &&
+               line == other.line && column == other.column;
     }
 };
