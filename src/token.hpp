@@ -17,6 +17,8 @@ enum TokenType {
     LessEquals,
     Lparen,
     Rparen,
+    Lbracket,
+    Rbracket,
     Walrus,
     Semicolon,
     Colon,
@@ -32,12 +34,17 @@ enum TokenType {
     Do,
     Read,
     Write,
-    End
+    End,
+    Comma
 };
 
 struct Token {
-    TokenType toket_type;
+    TokenType token_type;
     std::string lexeme;
     unsigned line;
     unsigned column;
+
+    auto operator==(const Token& other) const -> bool {
+        return token_type == other.token_type && lexeme == other.lexeme && line == other.line && column == other.column;
+    }
 };

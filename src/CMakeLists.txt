@@ -1,1 +1,1 @@
-add_executable(compiler compiler.cpp)
+add_executable(compiler compiler.cpp error.cpp lexer.cpp)
