@@ -1,5 +1,6 @@
 #include "error.hpp"
 
+#include <fmt/color.h>
 #include <iostream>
 
 auto Error::operator==(const Error &other) const -> bool {
@@ -8,6 +9,8 @@ auto Error::operator==(const Error &other) const -> bool {
 }
 
 auto display_error(const Error &error) -> void {
-    std::cerr << "Error(" << error.source << "):" << error.line << ":"
-              << error.column << ": " << error.message << std::endl;
+    fmt::print(fg(fmt::color::white) | fmt::emphasis::bold,
+               "{}:{}:{}: ", error.source, error.line, error.column);
+    fmt::print(fg(fmt::color::red), "Fatal Error: ");
+    fmt::print("{}.\n", error.message);
 }
