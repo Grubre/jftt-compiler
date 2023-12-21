@@ -7,6 +7,8 @@ struct Error {
     std::string message;
     unsigned line;
     unsigned column;
+
+    auto operator==(const Error &other) const -> bool;
 };
 
-[[noreturn]] auto throw_error(const Error& error) -> void;
+auto display_error(const Error &error) -> void;

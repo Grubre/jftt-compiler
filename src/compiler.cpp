@@ -1,15 +1,17 @@
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <optional>
-#include <fstream>
 
+#include "error.hpp"
 #include "lexer.hpp"
 
-auto load_file(const std::string& filepath) -> std::string {
+auto load_file(const std::string &filepath) -> std::string {
     auto file = std::ifstream(filepath);
 
-    if(!file) {
-        std::cerr << "Error: File " << std::quoted(filepath) << " not found." << std::endl;
+    if (!file) {
+        std::cerr << "Error: File " << std::quoted(filepath) << " not found."
+                  << std::endl;
     }
 
     std::stringstream buffer;
@@ -17,9 +19,10 @@ auto load_file(const std::string& filepath) -> std::string {
     return buffer.str();
 }
 
-auto main(int argc, char** argv) -> int {
+auto main(int argc, char **argv) -> int {
     if (argc != 2) {
-        std::cout << "Usage: " + std::string{argv[0]} + " <input_file>" << std::endl;
+        std::cout << "Usage: " + std::string{argv[0]} + " <input_file>"
+                  << std::endl;
         return 1;
     }
 
@@ -29,8 +32,11 @@ auto main(int argc, char** argv) -> int {
 
     auto lexer = Lexer(source);
 
-    for(auto& token : lexer) {
-        std::cout << token.lexeme << std::endl;;
+    for (auto &token : lexer) {
+        if (token)
+            std::cout << token->lexeme << std::endl;
+        else
+            display_error(token.error());
     }
 
     return 0;

@@ -1,9 +1,10 @@
 #include "lexer.hpp"
 #include "error.hpp"
+#include "expected.hpp"
 
+#include <format>
 #include <iostream>
 #include <unordered_map>
-#include <format>
 
 static const std::unordered_map<std::string, TokenType> keywords = {
     {"procedure", TokenType::Procedure},
@@ -18,10 +19,9 @@ static const std::unordered_map<std::string, TokenType> keywords = {
     {"do", TokenType::Do},
     {"read", TokenType::Read},
     {"write", TokenType::Write},
-    {"end", TokenType::End}
-};
+    {"end", TokenType::End}};
 
-Lexer::Lexer(const std::string& source) : source(source) {
+Lexer::Lexer(const std::string &source) : source(source) {
     line_number = 1;
     column_number = 1;
     current_index = 0;
@@ -82,15 +82,13 @@ void Lexer::trim_whitespace() {
     }
 }
 
-auto is_numeric(char c) -> bool {
-    return c >= '0' && c <= '9';
-}
+auto is_numeric(char c) -> bool { return c >= '0' && c <= '9'; }
 
 auto is_alphabetic(char c) -> bool {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-auto Lexer::next_token() -> std::optional<Token> {
+auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
     trim_whitespace();
 
     if (current_index >= source.size()) {
@@ -110,7 +108,9 @@ auto Lexer::next_token() -> std::optional<Token> {
     }
 
     if (is_alphabetic(c) || c == '_') {
-        auto lexeme = chop_while([](char c) { return is_alphabetic(c) || is_numeric(c) || c == '_'; });
+        auto lexeme = chop_while([](char c) {
+            return is_alphabetic(c) || is_numeric(c) || c == '_';
+        });
         auto keyword = keywords.find(lexeme);
         if (keyword != keywords.end()) {
             return make_token(keyword->second, lexeme);
@@ -120,55 +120,61 @@ auto Lexer::next_token() -> std::optional<Token> {
     }
 
     switch (c) {
-        case '+':
-            return make_token(TokenType::Plus, chop(1));
-        case '-':
-            return make_token(TokenType::Minus, chop(1));
-        case '*':
-            return make_token(TokenType::Star, chop(1));
-        case '/':
-            return make_token(TokenType::Slash, chop(1));
-        case '%':
-            return make_token(TokenType::Percent, chop(1));
-        case '=':
-            return make_token(TokenType::Equals, chop(1));
-        case '!':
-            if (peek() == '=') {
-                return make_token(TokenType::BangEquals, chop(2));
-            } else {
-                throw_error(Error{"Lexer", std::format("Unexpected character: Expected '!=', found '!{}'", c), line_number, column_number});
-            }
-        case '>':
-            if (peek() == '=') {
-                return make_token(TokenType::GreaterEquals, chop(2));
-            } else {
-                return make_token(TokenType::Greater, chop(1));
-            }
-        case '<':
-            if (peek() == '=') {
-                return make_token(TokenType::LessEquals, chop(2));
-            } else {
-                return make_token(TokenType::Less, chop(1));
-            }
-        case '(':
-            return make_token(TokenType::Lparen, chop(1));
-        case ')':
-            return make_token(TokenType::Rparen, chop(1));
-        case '[':
-            return make_token(TokenType::Lbracket, chop(1));
-        case ']':
-            return make_token(TokenType::Rbracket, chop(1));
-        case ':':
-            if (peek() == '=') {
-                return make_token(TokenType::Walrus, chop(2));
-            } else {
-                return make_token(TokenType::Colon, chop(1));
-            }
-        case ';':
-            return make_token(TokenType::Semicolon, chop(1));
-        case ',':
-            return make_token(TokenType::Comma, chop(1));
+    case '+':
+        return make_token(TokenType::Plus, chop(1));
+    case '-':
+        return make_token(TokenType::Minus, chop(1));
+    case '*':
+        return make_token(TokenType::Star, chop(1));
+    case '/':
+        return make_token(TokenType::Slash, chop(1));
+    case '%':
+        return make_token(TokenType::Percent, chop(1));
+    case '=':
+        return make_token(TokenType::Equals, chop(1));
+    case '!':
+        if (peek() == '=') {
+            return make_token(TokenType::BangEquals, chop(2));
+        } else {
+            return tl::unexpected(Error{
+                "Lexer",
+                std::format("Unexpected character: Expected '!=', found '!{}'",
+                            c),
+                line_number, column_number});
+        }
+    case '>':
+        if (peek() == '=') {
+            return make_token(TokenType::GreaterEquals, chop(2));
+        } else {
+            return make_token(TokenType::Greater, chop(1));
+        }
+    case '<':
+        if (peek() == '=') {
+            return make_token(TokenType::LessEquals, chop(2));
+        } else {
+            return make_token(TokenType::Less, chop(1));
+        }
+    case '(':
+        return make_token(TokenType::Lparen, chop(1));
+    case ')':
+        return make_token(TokenType::Rparen, chop(1));
+    case '[':
+        return make_token(TokenType::Lbracket, chop(1));
+    case ']':
+        return make_token(TokenType::Rbracket, chop(1));
+    case ':':
+        if (peek() == '=') {
+            return make_token(TokenType::Walrus, chop(2));
+        } else {
+            return make_token(TokenType::Colon, chop(1));
+        }
+    case ';':
+        return make_token(TokenType::Semicolon, chop(1));
+    case ',':
+        return make_token(TokenType::Comma, chop(1));
     }
 
-    throw_error(Error{"Lexer", std::format("Unexpected character '{}'", c), line_number, column_number});
+    return tl::unexpected(Error{"Lexer",
+                                std::format("Unexpected character '{}'", c),
+                                line_number, column_number});
 }
