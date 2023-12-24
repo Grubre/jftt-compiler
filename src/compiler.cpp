@@ -5,6 +5,7 @@
 
 #include "error.hpp"
 #include "lexer.hpp"
+#include "parser.hpp"
 
 auto load_file(const std::string &filepath) -> std::string {
     auto file = std::ifstream(filepath);

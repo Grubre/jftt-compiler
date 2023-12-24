@@ -8,6 +8,7 @@
 
 class Lexer {
   public:
+    Lexer() = delete;
     Lexer(const std::string &source);
     auto next_token() -> std::optional<tl::expected<Token, Error>>;
 
