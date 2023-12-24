@@ -1,3 +1,3 @@
 #include "parser.hpp"
 
- Parser::Parser(Lexer&& lexer) : lexer(std::move(lexer)) {}
+parser::Parser::Parser(Lexer &&lexer) : lexer(std::move(lexer)) {}

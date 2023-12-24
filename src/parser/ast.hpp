@@ -1,23 +1,30 @@
 #pragma once
 
+#include "token.hpp"
 #include <memory>
-struct AstNode;
-using AstNodePtr = std::unique_ptr<AstNode>;
-
-struct Expression {
-    AstNodePtr left;
-    AstNodePtr right;
-
-    Expression(AstNodePtr left, AstNodePtr right)
-        : left(std::move(left)), right(std::move(right)) {}
-};
-
-struct Num {
-    uint64_t value;
-};
+#include <variant>
 
 struct PIdentifier {
     std::string name;
+    // TODO: Change it to Identifier, add support for
+    // pidentifier[pidnetifier], pidentifier[num]
+};
+
+struct Value {
+    std::variant<uint64_t, std::string> value;
+
+    Value(uint64_t num) : value(num) {}
+    Value(std::string identifier) : value(std::move(identifier)) {}
+};
+
+struct Expression {
+    Value left;
+    Value right;
+};
+
+struct Condition {
+    Value left;
+    Value right;
 };
 
 enum class NodeType {
@@ -26,18 +33,59 @@ enum class NodeType {
     Pidentifier,
 };
 
-struct AstNode {
-    NodeType type;
+// struct AstNode {
+//     NodeType type;
+//
+//     AstNode(Expression expr)
+//         : type(NodeType::Expression), expression(std::move(expr)) {}
+//     AstNode(uint64_t num) : num(num) {}
+//     AstNode(PIdentifier pidentifier)
+//         : type(NodeType::Pidentifier), pidentifier(std::move(pidentifier)) {}
+//
+//     union {
+//         Expression expression;
+//         uint64_t num;
+//         PIdentifier pidentifier;
+//     };
+//
+//     ~AstNode() {
+//         switch (type) {
+//         case NodeType::Expression:
+//             expression.~Expression();
+//             break;
+//         case NodeType::Num:
+//             break;
+//         case NodeType::Pidentifier:
+//             pidentifier.~PIdentifier();
+//             break;
+//         }
+//     }
+// };
 
-    AstNode(Expression expr)
-        : type(NodeType::Expression), expression(std::move(expr)) {}
-    AstNode(Num num) : type(NodeType::Num), num(std::move(num)) {}
-    AstNode(PIdentifier pidentifier)
-        : type(NodeType::Pidentifier), pidentifier(std::move(pidentifier)) {}
+enum class CommandType { Assignment };
+
+struct Assignment {
+    Token identifier;
+    Expression expression;
+};
+
+struct Command {
+    CommandType type;
+
+    Command(Assignment assignment)
+        : type(CommandType::Assignment), assignment(std::move(assignment)) {}
 
     union {
-        Expression expression;
-        Num num;
-        PIdentifier pidentifier;
+        Assignment assignment;
     };
+
+    ~Command() {
+        switch (type) {
+        case CommandType::Assignment:
+            assignment.~Assignment();
+            break;
+        }
+    }
 };
+
+struct Declaration {};
