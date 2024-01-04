@@ -2,18 +2,27 @@
 #include "error.hpp"
 #include "expected.hpp"
 
+#include <exception>
 #include <format>
 #include <iostream>
 #include <unordered_map>
 
 static const std::unordered_map<std::string, TokenType> keywords = {
-    {"PROGRAM", TokenType::Program}, {"PROCEDURE", TokenType::Procedure},
-    {"IS", TokenType::Is},           {"IN", TokenType::In},
-    {"WHILE", TokenType::While},     {"ENDWHILE", TokenType::EndWhile},
-    {"IF", TokenType::If},           {"ENDIF", TokenType::EndIf},
-    {"THEN", TokenType::Then},       {"ELSE", TokenType::Else},
-    {"DO", TokenType::Do},           {"READ", TokenType::Read},
-    {"WRITE", TokenType::Write},     {"END", TokenType::End}};
+    {"PROGRAM", TokenType::Program},
+    {"PROCEDURE", TokenType::Procedure},
+    {"IS", TokenType::Is},
+    {"IN", TokenType::In},
+    {"WHILE", TokenType::While},
+    {"ENDWHILE", TokenType::EndWhile},
+    {"IF", TokenType::If},
+    {"ENDIF", TokenType::EndIf},
+    {"THEN", TokenType::Then},
+    {"ELSE", TokenType::Else},
+    {"DO", TokenType::Do},
+    {"READ", TokenType::Read},
+    {"WRITE", TokenType::Write},
+    {"END", TokenType::End},
+    {"T", TokenType::T}};
 
 Lexer::Lexer(const std::string &source) : source(source) {
     line_number = 1;
@@ -78,9 +87,8 @@ void Lexer::trim_whitespace() {
 
 auto is_numeric(char c) -> bool { return c >= '0' && c <= '9'; }
 
-auto is_alphabetic(char c) -> bool {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
-}
+auto is_lowercase_alphabetic(char c) -> bool { return (c >= 'a' && c <= 'z'); }
+auto is_uppercase_alphabetic(char c) -> bool { return (c >= 'A' && c <= 'Z'); }
 
 auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
     trim_whitespace();
@@ -101,16 +109,23 @@ auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
         return make_token(TokenType::Num, lexeme);
     }
 
-    if (is_alphabetic(c) || c == '_') {
-        auto lexeme = chop_while([](char c) {
-            return is_alphabetic(c) || is_numeric(c) || c == '_';
-        });
+    if (is_lowercase_alphabetic(c) || c == '_') {
+        auto lexeme = chop_while(
+            [](char c) { return is_lowercase_alphabetic(c) || c == '_'; });
+        return make_token(TokenType::Pidentifier, lexeme);
+    }
+
+    if (is_uppercase_alphabetic(c)) {
+        auto lexeme = chop_while(is_uppercase_alphabetic);
+
         auto keyword = keywords.find(lexeme);
         if (keyword != keywords.end()) {
             return make_token(keyword->second, lexeme);
         } else {
-            return make_token(TokenType::Pidentifier, lexeme);
-        }
+            return tl::unexpected(
+                Error{"Lexer", std::format("Unknown keyword '{}'", lexeme),
+                      line_number, column_number});
+        };
     }
 
     switch (c) {
