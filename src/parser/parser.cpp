@@ -25,6 +25,7 @@ auto Parser::expect(TokenType type) -> std::optional<Token> {
         return std::nullopt;
     }
     auto token = tokens.front();
+    tokens = tokens.subspan(1);
     // TODO: Fix the SICKENING formatting
     if (token.token_type != type) {
         errors.push_back(Error{.source = error_source,
@@ -34,7 +35,6 @@ auto Parser::expect(TokenType type) -> std::optional<Token> {
                                .column = token.column});
         return std::nullopt;
     }
-    tokens = tokens.subspan(1);
     return token;
 }
 

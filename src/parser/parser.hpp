@@ -32,15 +32,15 @@ class Parser {
     Parser() = delete;
     Parser(const std::span<Token> &tokens) : tokens(tokens){};
 
-    auto parse_program() -> std::optional<program_type>;
+    auto get_errors() const -> const std::vector<Error> & { return errors; }
 
-  private:
+    auto parse_program() -> std::optional<program_type>;
     auto chop() -> std::optional<Token>;
     auto match_next(TokenType type) -> bool;
     auto expect(TokenType type) -> std::optional<Token>;
-    auto parse_context() -> std::optional<Context>;
     auto parse_declarations() -> std::optional<std::vector<Declaration>>;
     auto parse_commands() -> std::optional<std::vector<Command>>;
+    auto parse_context() -> std::optional<Context>;
 
   private:
     std::span<Token> tokens;
