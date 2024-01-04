@@ -19,8 +19,9 @@ using Num = Token;
 using Value = std::variant<Num, Identifier>;
 
 struct Expression {
-    Value left;
-    Value right;
+    Value lhs;
+    Token op;
+    Value rhs;
 };
 
 struct Condition {
@@ -66,7 +67,7 @@ enum class NodeType {
 enum class CommandType { Assignment, Read };
 
 struct Assignment {
-    Token identifier;
+    Identifier identifier;
     Expression expression;
 };
 

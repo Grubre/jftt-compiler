@@ -44,6 +44,8 @@ class Parser {
     auto parse_context() -> std::optional<Context>;
     auto parse_read() -> std::optional<Command>;
     auto parse_write() -> std::optional<Command>;
+    auto parse_assignment() -> std::optional<Command>;
+    auto parse_expression() -> std::optional<Expression>;
     auto parse_identifier() -> std::optional<Identifier>;
     auto parse_value() -> std::optional<Value>;
 

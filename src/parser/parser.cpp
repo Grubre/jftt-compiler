@@ -74,6 +74,49 @@ auto Parser::parse_declarations() -> std::optional<std::vector<Declaration>> {
     return declarations;
 }
 
+auto Parser::parse_expression() -> std::optional<Expression> {
+    const auto lhs = parse_value();
+
+    if (!lhs) {
+        return std::nullopt;
+    }
+
+    const auto op = expect(TokenType::Plus, TokenType::Minus, TokenType::Star,
+                           TokenType::Slash, TokenType::Percent);
+
+    if (!op) {
+        return std::nullopt;
+    }
+
+    const auto rhs = parse_value();
+
+    if (!rhs) {
+        return std::nullopt;
+    }
+
+    return Expression{.lhs = *lhs, .op = *op, .rhs = *rhs};
+}
+
+auto Parser::parse_assignment() -> std::optional<Command> {
+    const auto identifier = parse_identifier();
+
+    if (!identifier) {
+        return std::nullopt;
+    }
+
+    if (!expect(TokenType::Walrus)) {
+        return std::nullopt;
+    }
+
+    const auto expression = parse_expression();
+
+    if (!expression) {
+        return std::nullopt;
+    }
+
+    return Assignment{.identifier = *identifier, .expression = *expression};
+}
+
 auto Parser::parse_read() -> std::optional<Command> {
     const auto identifier = expect(TokenType::Pidentifier);
 
@@ -140,6 +183,7 @@ auto Parser::parse_value() -> std::optional<Value> {
         return *identifier;
     }
 
+    // TODO: Handle error
     return std::nullopt;
 }
 
