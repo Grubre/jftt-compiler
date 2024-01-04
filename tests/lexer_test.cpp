@@ -5,9 +5,9 @@
 #include "token.hpp"
 #include <array>
 
-constexpr std::array keywords = {"procedure", "is", "in",    "while",
-                                 "endwhile",  "if", "endif", "then",
-                                 "else",      "do", "read",  "write"};
+constexpr std::array keywords = {"PROCEDURE", "IS", "IN",    "WHILE",
+                                 "ENDWHILE",  "IF", "ENDIF", "THEN",
+                                 "ELSE",      "DO", "READ",  "WRITE"};
 
 TEST_CASE("Lexer - keywords") {
     constexpr std::array expected_types = {
