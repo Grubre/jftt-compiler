@@ -124,4 +124,6 @@ struct Command {
     }
 };
 
-struct Declaration {};
+struct Declaration {
+    Token identifier;
+};

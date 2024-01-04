@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <string>
 enum TokenType {
     Pidentifier,
@@ -108,6 +109,8 @@ constexpr auto to_string(TokenType token_type) -> std::string {
         return "End";
     case Comma:
         return "Comma";
+    default:
+        assert(false && "Unreachable");
     }
 }
 
