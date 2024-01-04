@@ -83,6 +83,34 @@ struct Command {
         }
     }
 
+    Command(Command &&other) : type(other.type) {
+        switch (type) {
+        case CommandType::Assignment:
+            new (&assignment) Assignment(std::move(other.assignment));
+            break;
+        }
+    }
+
+    auto operator=(const Command &other) -> Command & {
+        if (this == &other) {
+            return *this;
+        }
+
+        this->~Command();
+        new (this) Command(other);
+        return *this;
+    }
+
+    auto operator=(Command &&other) -> Command & {
+        if (this == &other) {
+            return *this;
+        }
+
+        this->~Command();
+        new (this) Command(std::move(other));
+        return *this;
+    }
+
     union {
         Assignment assignment;
     };
