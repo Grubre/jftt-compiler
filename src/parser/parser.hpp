@@ -37,10 +37,15 @@ class Parser {
     auto parse_program() -> std::optional<program_type>;
     auto chop() -> std::optional<Token>;
     auto match_next(TokenType type) -> bool;
-    auto expect(TokenType type) -> std::optional<Token>;
+    template <typename... TokenTypes>
+    auto expect(TokenTypes... types) -> std::optional<Token>;
     auto parse_declarations() -> std::optional<std::vector<Declaration>>;
-    auto parse_commands() -> std::optional<std::vector<Command>>;
+    auto parse_command() -> std::optional<Command>;
     auto parse_context() -> std::optional<Context>;
+    auto parse_read() -> std::optional<Command>;
+    auto parse_write() -> std::optional<Command>;
+    auto parse_identifier() -> std::optional<Identifier>;
+    auto parse_value() -> std::optional<Value>;
 
   private:
     std::span<Token> tokens;
