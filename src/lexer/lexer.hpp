@@ -56,7 +56,6 @@ class Lexer {
     };
 
     Iterator begin() { return Iterator(this, next_token()); }
-
     Iterator end() { return Iterator(); }
 
   private:
@@ -71,5 +70,5 @@ class Lexer {
     unsigned line_number;
     unsigned column_number;
     unsigned current_index;
-    std::string source;
+    const std::string source;
 };

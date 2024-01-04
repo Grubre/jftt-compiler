@@ -75,6 +75,14 @@ struct Command {
     Command(Assignment assignment)
         : type(CommandType::Assignment), assignment(std::move(assignment)) {}
 
+    Command(const Command &other) : type(other.type) {
+        switch (type) {
+        case CommandType::Assignment:
+            new (&assignment) Assignment(other.assignment);
+            break;
+        }
+    }
+
     union {
         Assignment assignment;
     };

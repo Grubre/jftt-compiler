@@ -8,7 +8,7 @@
 #include "parser.hpp"
 
 auto load_file(const std::string &filepath) -> std::string {
-    auto file = std::ifstream(filepath);
+    const auto file = std::ifstream(filepath);
 
     if (!file) {
         std::cerr << "Error: File " << std::quoted(filepath) << " not found."
@@ -27,18 +27,33 @@ auto main(int argc, char **argv) -> int {
         return 1;
     }
 
-    auto filepath = std::string(argv[1]);
+    const auto filepath = std::string(argv[1]);
 
-    auto source = load_file(filepath);
+    const auto source = load_file(filepath);
 
     auto lexer = Lexer(source);
 
+    auto tokens = std::vector<Token>{};
+
+    bool error_occured = false;
+
     for (auto &token : lexer) {
-        if (token)
+        if (token) {
             std::cout << token->lexeme << std::endl;
-        else
+            tokens.push_back(*token);
+        } else {
             display_error(token.error());
+            error_occured = true;
+        }
     }
+
+    if (error_occured) {
+        return 1;
+    }
+
+    auto parser = parser::Parser(tokens);
+
+    auto program = parser.parse_program();
 
     return 0;
 }
