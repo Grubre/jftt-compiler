@@ -78,7 +78,7 @@ struct Write {
     Value value;
 };
 
-using Command = std::variant<Assignment, Read>;
+using Command = std::variant<Assignment, Read, Write>;
 
 // struct Command {
 //     CommandType type;

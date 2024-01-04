@@ -84,6 +84,16 @@ auto Parser::parse_read() -> std::optional<Command> {
     return Read{.identifier = *identifier};
 }
 
+auto Parser::parse_write() -> std::optional<Command> {
+    const auto value = parse_value();
+
+    if (!value) {
+        return std::nullopt;
+    }
+
+    return Write{.value = *value};
+}
+
 auto Parser::parse_identifier() -> std::optional<Identifier> {
     const auto identifier = expect(TokenType::Pidentifier);
 
@@ -132,8 +142,6 @@ auto Parser::parse_value() -> std::optional<Value> {
 
     return std::nullopt;
 }
-
-// auto Parser::parse_write() -> std::optional<Command> { const auto value = }
 
 auto Parser::parse_command() -> std::optional<Command> {
     const auto next = chop();
