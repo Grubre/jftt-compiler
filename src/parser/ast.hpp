@@ -18,15 +18,18 @@ struct Identifier {
 using Num = Token;
 using Value = std::variant<Num, Identifier>;
 
-struct Expression {
+struct BinaryExpression {
     Value lhs;
     Token op;
     Value rhs;
 };
 
+using Expression = std::variant<BinaryExpression, Value>;
+
 struct Condition {
-    Value left;
-    Value right;
+    Value lhs;
+    Token op;
+    Value rhs;
 };
 
 enum class NodeType {

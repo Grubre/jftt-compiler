@@ -55,5 +55,14 @@ auto main(int argc, char **argv) -> int {
 
     auto program = parser.parse_program();
 
+    if (program) {
+        std::cout << "Program parsed successfully!" << std::endl;
+    } else {
+        for (auto &error : parser.get_errors()) {
+            display_error(error);
+        }
+        return 1;
+    }
+
     return 0;
 }

@@ -1,7 +1,10 @@
+#include "ast.hpp"
+#include <format>
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "parser.hpp"
 #include "tests_shared.hpp"
 #include "token.hpp"
+#include <array>
 #include <variant>
 
 auto make_pidentifier(std::string name) -> Token {
@@ -21,6 +24,14 @@ auto make_num(std::string value) -> Token {
                  .lexeme = std::move(value),
                  .line = 1,
                  .column = 1};
+}
+
+auto make_num_or_pidentifier(std::string value) -> Token {
+    if (value[0] >= '0' && value[0] <= '9') {
+        return make_num(std::move(value));
+    } else {
+        return make_pidentifier(std::move(value));
+    }
 }
 
 auto make_lbracket() -> Token {
@@ -264,51 +275,82 @@ TEST_CASE("Parser - parse value") {
 }
 
 TEST_CASE("Parser - parse expression") {
-    SUBCASE("Num + Num") {
-        auto tokens = std::vector<Token>{make_num("0"), make_operator('+'),
-                                         make_num("1")};
+    char op;
+    auto operators = std::array{'+', '-', '*', '/', '%'};
+
+    auto operator_to_tokentype = [](char op) -> TokenType {
+        switch (op) {
+        case '+':
+            return TokenType::Plus;
+        case '-':
+            return TokenType::Minus;
+        case '*':
+            return TokenType::Star;
+        case '/':
+            return TokenType::Slash;
+        case '%':
+            return TokenType::Percent;
+        }
+        assert(false);
+    };
+
+    SUBCASE("Num Num") {
+        DOCTEST_VALUE_PARAMETERIZED_DATA(op, operators);
+        auto tokens =
+            std::vector<Token>{make_num("0"), make_operator(op), make_num("1")};
         auto parser = parser::Parser(tokens);
 
         const auto expression = parser.parse_expression();
+        const auto bin = std::get<parser::BinaryExpression>(*expression);
+
         CHECK(expression.has_value());
-        CHECK(std::holds_alternative<parser::Num>(expression->lhs));
-        CHECK(std::holds_alternative<parser::Num>(expression->rhs));
-        CHECK(expression->op.token_type == TokenType::Plus);
+        CHECK(std::holds_alternative<parser::Num>(bin.lhs));
+        CHECK(std::holds_alternative<parser::Num>(bin.rhs));
+        CHECK(bin.op.token_type == operator_to_tokentype(op));
     }
 
-    SUBCASE("Num + Identifier") {
-        auto tokens = std::vector<Token>{make_num("0"), make_operator('+'),
+    SUBCASE("Num Identifier") {
+        DOCTEST_VALUE_PARAMETERIZED_DATA(op, operators);
+        auto tokens = std::vector<Token>{make_num("0"), make_operator(op),
                                          make_pidentifier("n")};
         auto parser = parser::Parser(tokens);
 
         const auto expression = parser.parse_expression();
+        const auto bin = std::get<parser::BinaryExpression>(*expression);
+
         CHECK(expression.has_value());
-        CHECK(std::holds_alternative<parser::Num>(expression->lhs));
-        CHECK(std::holds_alternative<parser::Identifier>(expression->rhs));
-        CHECK(expression->op.token_type == TokenType::Plus);
+        CHECK(std::holds_alternative<parser::Num>(bin.lhs));
+        CHECK(std::holds_alternative<parser::Identifier>(bin.rhs));
+        CHECK(bin.op.token_type == operator_to_tokentype(op));
     }
 
-    SUBCASE("Identifier + Num") {
+    SUBCASE("Identifier Num") {
+        DOCTEST_VALUE_PARAMETERIZED_DATA(op, operators);
         auto tokens = std::vector<Token>{make_pidentifier("n"),
-                                         make_operator('+'), make_num("1")};
+                                         make_operator(op), make_num("0")};
         auto parser = parser::Parser(tokens);
 
         const auto expression = parser.parse_expression();
+        const auto bin = std::get<parser::BinaryExpression>(*expression);
+
         CHECK(expression.has_value());
-        CHECK(std::holds_alternative<parser::Identifier>(expression->lhs));
-        CHECK(std::holds_alternative<parser::Num>(expression->rhs));
-        CHECK(expression->op.token_type == TokenType::Plus);
+        CHECK(std::holds_alternative<parser::Identifier>(bin.lhs));
+        CHECK(std::holds_alternative<parser::Num>(bin.rhs));
+        CHECK(bin.op.token_type == operator_to_tokentype(op));
     }
 
-    SUBCASE("Identifier + Identifier") {
+    SUBCASE("Identifier Identifier") {
+        DOCTEST_VALUE_PARAMETERIZED_DATA(op, operators);
         auto tokens = std::vector<Token>{
-            make_pidentifier("n"), make_operator('+'), make_pidentifier("m")};
+            make_pidentifier("n"), make_operator(op), make_pidentifier("m")};
         auto parser = parser::Parser(tokens);
 
         const auto expression = parser.parse_expression();
+        const auto bin = std::get<parser::BinaryExpression>(*expression);
+
         CHECK(expression.has_value());
-        CHECK(std::holds_alternative<parser::Identifier>(expression->lhs));
-        CHECK(std::holds_alternative<parser::Identifier>(expression->rhs));
-        CHECK(expression->op.token_type == TokenType::Plus);
+        CHECK(std::holds_alternative<parser::Identifier>(bin.lhs));
+        CHECK(std::holds_alternative<parser::Identifier>(bin.rhs));
+        CHECK(bin.op.token_type == operator_to_tokentype(op));
     }
 }

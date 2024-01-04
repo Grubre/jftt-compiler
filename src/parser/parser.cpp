@@ -12,10 +12,25 @@ auto Parser::chop() -> std::optional<Token> {
     return token;
 }
 
-auto Parser::match_next(TokenType type) -> bool {
+auto Parser::peek() -> std::optional<Token> {
+    if (tokens.empty())
+        return std::nullopt;
+    auto token = tokens.front();
+    return token;
+}
+
+template <typename... TokenTypes>
+auto Parser::match_next(TokenTypes... expected) -> bool {
     if (tokens.empty())
         return false;
-    return tokens.front().token_type == type;
+
+    std::initializer_list<TokenType> expected_types{expected...};
+
+    if (std::find(expected_types.begin(), expected_types.end(),
+                  tokens.front().token_type) == expected_types.end()) {
+        return false;
+    }
+    return true;
 }
 
 template <typename... TokenTypes>
@@ -74,11 +89,17 @@ auto Parser::parse_declarations() -> std::optional<std::vector<Declaration>> {
     return declarations;
 }
 
+// TODO: Possibly remove the duplication between the Expression and Condition
+// structures and their respective parse functions
 auto Parser::parse_expression() -> std::optional<Expression> {
     const auto lhs = parse_value();
 
     if (!lhs) {
         return std::nullopt;
+    }
+
+    if (match_next(TokenType::Semicolon)) {
+        return *lhs;
     }
 
     const auto op = expect(TokenType::Plus, TokenType::Minus, TokenType::Star,
@@ -94,7 +115,31 @@ auto Parser::parse_expression() -> std::optional<Expression> {
         return std::nullopt;
     }
 
-    return Expression{.lhs = *lhs, .op = *op, .rhs = *rhs};
+    return BinaryExpression{.lhs = *lhs, .op = *op, .rhs = *rhs};
+}
+
+auto Parser::parse_condition() -> std::optional<Condition> {
+    const auto lhs = parse_value();
+
+    if (!lhs) {
+        return std::nullopt;
+    }
+
+    const auto op = expect(TokenType::Equals, TokenType::BangEquals,
+                           TokenType::Greater, TokenType::Less,
+                           TokenType::GreaterEquals, TokenType::LessEquals);
+
+    if (!op) {
+        return std::nullopt;
+    }
+
+    const auto rhs = parse_value();
+
+    if (!rhs) {
+        return std::nullopt;
+    }
+
+    return Condition{.lhs = *lhs, .op = *op, .rhs = *rhs};
 }
 
 auto Parser::parse_assignment() -> std::optional<Command> {
@@ -188,7 +233,7 @@ auto Parser::parse_value() -> std::optional<Value> {
 }
 
 auto Parser::parse_command() -> std::optional<Command> {
-    const auto next = chop();
+    const auto next = peek();
 
     if (!next) {
         // TODO: Handle error in a better way
@@ -201,6 +246,11 @@ auto Parser::parse_command() -> std::optional<Command> {
     switch (next->token_type) {
     case TokenType::Read:
         return parse_read();
+    case TokenType::Write:
+        return parse_write();
+    case TokenType::Pidentifier:
+        return parse_assignment();
+
     default:
         errors.push_back(Error{.source = error_source,
                                .message = "Unexpected token: " + next->lexeme,
@@ -208,8 +258,6 @@ auto Parser::parse_command() -> std::optional<Command> {
                                .column = next->column});
         return std::nullopt;
     }
-
-    // auto command = Command{};
 }
 
 auto Parser::parse_context() -> std::optional<Context> {
@@ -243,7 +291,9 @@ auto Parser::parse_context() -> std::optional<Context> {
 
 auto Parser::parse_program() -> std::optional<program_type> {
     while (match_next(TokenType::Procedure)) {
-        // TODO: Parse procedure
+        if (!parse_procedure()) {
+            return std::nullopt;
+        }
     }
 
     expect(TokenType::Program);
@@ -257,6 +307,88 @@ auto Parser::parse_program() -> std::optional<program_type> {
     program.main = *main;
 
     return program;
+}
+
+auto Parser::parse_procedure() -> std::optional<Procedure> {
+    if (!expect(TokenType::Procedure)) {
+        return std::nullopt;
+    }
+
+    const auto name = expect(TokenType::Pidentifier);
+
+    if (!name) {
+        return std::nullopt;
+    }
+
+    if (!expect(TokenType::Lparen)) {
+        return std::nullopt;
+    }
+
+    auto args = std::vector<Arg>{};
+
+    while (match_next(TokenType::T, TokenType::Pidentifier)) {
+        const auto next = chop();
+
+        switch (next->token_type) {
+        case TokenType::T: {
+            const auto identifier = expect(TokenType::Pidentifier);
+
+            if (!identifier) {
+                return std::nullopt;
+            }
+
+            args.push_back(Arg{.identifier = *identifier, .is_array = true});
+        } break;
+        case TokenType::Pidentifier:
+            args.push_back(Arg{.identifier = *next, .is_array = false});
+            break;
+        default:
+            // unreachable
+            break;
+        }
+
+        if (match_next(TokenType::Comma)) {
+            chop();
+        }
+    }
+
+    if (!expect(TokenType::Rparen)) {
+        return std::nullopt;
+    }
+
+    if (!expect(TokenType::Is)) {
+        return std::nullopt;
+    }
+
+    const auto declarations = parse_declarations();
+
+    if (!expect(TokenType::In)) {
+        return std::nullopt;
+    }
+
+    auto commands = std::vector<Command>{};
+
+    while (!match_next(TokenType::End)) {
+        const auto command = parse_command();
+        if (!command) {
+            return std::nullopt;
+        }
+
+        commands.push_back(*command);
+
+        if (!expect(TokenType::Semicolon)) {
+            return std::nullopt;
+        }
+    }
+
+    if (!expect(TokenType::End)) {
+        return std::nullopt;
+    }
+
+    return Procedure{.name = *name,
+                     .args = args,
+                     .context = Context{.declarations = *declarations,
+                                        .commands = commands}};
 }
 
 } // namespace parser

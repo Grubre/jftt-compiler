@@ -14,15 +14,20 @@ struct Context {
     std::vector<Command> commands{};
 };
 
+struct Arg {
+    Token identifier;
+    bool is_array;
+};
+
 struct Procedure {
-    std::string name{};
-    // TODO: Add args field
-    Context context{};
+    Token name;
+    std::vector<Arg> args{};
+    Context context;
 };
 
 struct Program {
     std::vector<Procedure> functions{};
-    Context main{};
+    Context main;
 };
 
 using program_type = Program;
@@ -35,8 +40,11 @@ class Parser {
     auto get_errors() const -> const std::vector<Error> & { return errors; }
 
     auto parse_program() -> std::optional<program_type>;
+    auto parse_procedure() -> std::optional<Procedure>;
     auto chop() -> std::optional<Token>;
-    auto match_next(TokenType type) -> bool;
+    auto peek() -> std::optional<Token>;
+    template <typename... TokenTypes>
+    auto match_next(TokenTypes... expected) -> bool;
     template <typename... TokenTypes>
     auto expect(TokenTypes... types) -> std::optional<Token>;
     auto parse_declarations() -> std::optional<std::vector<Declaration>>;
@@ -46,6 +54,7 @@ class Parser {
     auto parse_write() -> std::optional<Command>;
     auto parse_assignment() -> std::optional<Command>;
     auto parse_expression() -> std::optional<Expression>;
+    auto parse_condition() -> std::optional<Condition>;
     auto parse_identifier() -> std::optional<Identifier>;
     auto parse_value() -> std::optional<Value>;
 
