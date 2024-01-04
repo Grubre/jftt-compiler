@@ -7,13 +7,13 @@
 #include <unordered_map>
 
 static const std::unordered_map<std::string, TokenType> keywords = {
-    {"program", TokenType::Program}, {"procedure", TokenType::Procedure},
-    {"is", TokenType::Is},           {"in", TokenType::In},
-    {"while", TokenType::While},     {"endwhile", TokenType::EndWhile},
-    {"if", TokenType::If},           {"endif", TokenType::EndIf},
-    {"then", TokenType::Then},       {"else", TokenType::Else},
-    {"do", TokenType::Do},           {"read", TokenType::Read},
-    {"write", TokenType::Write},     {"end", TokenType::End}};
+    {"PROGRAM", TokenType::Program}, {"PROCEDURE", TokenType::Procedure},
+    {"IS", TokenType::Is},           {"IN", TokenType::In},
+    {"WHILE", TokenType::While},     {"ENDWHILE", TokenType::EndWhile},
+    {"IF", TokenType::If},           {"ENDIF", TokenType::EndIf},
+    {"THEN", TokenType::Then},       {"ELSE", TokenType::Else},
+    {"DO", TokenType::Do},           {"READ", TokenType::Read},
+    {"WRITE", TokenType::Write},     {"END", TokenType::End}};
 
 Lexer::Lexer(const std::string &source) : source(source) {
     line_number = 1;
