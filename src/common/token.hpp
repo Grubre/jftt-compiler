@@ -37,7 +37,9 @@ enum TokenType {
     Write,
     End,
     Comma,
-    T
+    T,
+    Repeat,
+    Until
 };
 
 constexpr auto to_string(TokenType token_type) -> std::string {
@@ -112,6 +114,10 @@ constexpr auto to_string(TokenType token_type) -> std::string {
         return "Comma";
     case T:
         return "T";
+    case Repeat:
+        return "Repeat";
+    case Until:
+        return "Until";
     default:
         assert(false && "Unreachable");
     }

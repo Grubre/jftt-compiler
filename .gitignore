@@ -2,3 +2,4 @@ build/
 maszyna_wirtualna/
 compile_commands.json
 .cache/
+.project.gf

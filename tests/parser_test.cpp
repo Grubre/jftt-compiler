@@ -176,15 +176,6 @@ TEST_CASE("Parser - parse declarations") {
         CHECK(declarations->front().identifier.lexeme == "n");
         CHECK(declarations->back().identifier.lexeme == "m");
     }
-
-    SUBCASE("Missing identifier") {
-        auto tokens = std::vector<Token>{make_comma()};
-        auto parser = parser::Parser(tokens);
-
-        const auto declarations = parser.parse_declarations();
-        CHECK(!declarations.has_value());
-        CHECK(parser.get_errors().size() == 1);
-    }
 }
 
 TEST_CASE("Parser - parse identifier") {

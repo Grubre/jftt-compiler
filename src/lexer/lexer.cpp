@@ -22,7 +22,10 @@ static const std::unordered_map<std::string, TokenType> keywords = {
     {"READ", TokenType::Read},
     {"WRITE", TokenType::Write},
     {"END", TokenType::End},
-    {"T", TokenType::T}};
+    {"T", TokenType::T},
+    {"REPEAT", TokenType::Repeat},
+    {"UNTIL", TokenType::Until},
+};
 
 Lexer::Lexer(const std::string &source) : source(source) {
     line_number = 1;

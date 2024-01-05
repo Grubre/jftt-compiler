@@ -60,6 +60,8 @@ class Parser {
     auto parse_value() -> std::optional<Value>;
     auto parse_while() -> std::optional<Command>;
     auto parse_call() -> std::optional<Command>;
+    auto parse_if() -> std::optional<Command>;
+    auto parse_repeat() -> std::optional<Command>;
 
   private:
     std::span<Token> tokens;

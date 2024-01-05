@@ -88,14 +88,27 @@ struct Call {
     std::vector<Token> args;
 };
 
+struct If;
+struct Repeat;
 struct While;
 
 // NOTE: Possibly need to use pointer for While
-using Command = std::variant<Assignment, Read, Write, While, Call>;
+using Command = std::variant<Assignment, Read, Write, While, Call, If, Repeat>;
 
 struct While {
     Condition condition;
     std::vector<Command> commands;
+};
+
+struct If {
+    Condition condition;
+    std::vector<Command> commands;
+    std::optional<std::vector<Command>> else_commands;
+};
+
+struct Repeat {
+    std::vector<Command> commands;
+    Condition condition;
 };
 
 // struct Command {

@@ -79,12 +79,8 @@ auto Parser::parse_declarations() -> std::optional<std::vector<Declaration>> {
     auto declarations = std::vector<Declaration>{};
     std::optional<Token> array_size = std::nullopt;
 
-    do {
-        const auto identifier = expect(TokenType::Pidentifier);
-
-        if (!identifier) {
-            return std::nullopt;
-        }
+    while (match_next(TokenType::Pidentifier)) {
+        const auto identifier = chop();
 
         if (match_next(TokenType::Lbracket)) {
             chop();
@@ -102,7 +98,11 @@ auto Parser::parse_declarations() -> std::optional<std::vector<Declaration>> {
 
         declarations.push_back(
             Declaration{.identifier = *identifier, .array_size = array_size});
-    } while (match_and_chop(TokenType::Comma).has_value());
+
+        if (match_next(TokenType::Comma)) {
+            chop();
+        }
+    }
 
     return declarations;
 }
@@ -286,6 +286,10 @@ auto Parser::parse_command() -> std::optional<Command> {
         return parse_read();
     case TokenType::Write:
         return parse_write();
+    case TokenType::If:
+        return parse_if();
+    case TokenType::Repeat:
+        return parse_repeat();
     case TokenType::Pidentifier: {
         const auto token_after_identifier = peek(1);
 
@@ -510,6 +514,89 @@ auto Parser::parse_call() -> std::optional<Command> {
     }
 
     return Call{.name = *name, .args = args};
+}
+
+auto Parser::parse_if() -> std::optional<Command> {
+    if (!expect(TokenType::If)) {
+        return std::nullopt;
+    }
+
+    const auto condition = parse_condition();
+
+    if (!condition) {
+        return std::nullopt;
+    }
+
+    if (!expect(TokenType::Then)) {
+        return std::nullopt;
+    }
+
+    auto commands = std::vector<Command>{};
+
+    while (!match_next(TokenType::EndIf, TokenType::Else)) {
+        const auto command = parse_command();
+        if (!command) {
+            return std::nullopt;
+        }
+
+        commands.push_back(*command);
+    }
+
+    std::optional<std::vector<Command>> else_commands = std::nullopt;
+
+    if (match_next(TokenType::Else)) {
+        chop();
+
+        else_commands = std::vector<Command>{};
+
+        while (!match_next(TokenType::EndIf)) {
+            const auto command = parse_command();
+            if (!command) {
+                return std::nullopt;
+            }
+
+            else_commands->push_back(*command);
+        }
+    }
+
+    if (!expect(TokenType::EndIf)) {
+        return std::nullopt;
+    }
+
+    return If{.condition = *condition, .commands = commands};
+}
+
+auto Parser::parse_repeat() -> std::optional<Command> {
+    if (!expect(TokenType::Repeat)) {
+        return std::nullopt;
+    }
+
+    auto commands = std::vector<Command>{};
+
+    while (!match_next(TokenType::Until)) {
+        const auto command = parse_command();
+        if (!command) {
+            return std::nullopt;
+        }
+
+        commands.push_back(*command);
+    }
+
+    if (!expect(TokenType::Until)) {
+        return std::nullopt;
+    }
+
+    const auto condition = parse_condition();
+
+    if (!condition) {
+        return std::nullopt;
+    }
+
+    if (!expect(TokenType::Semicolon)) {
+        return std::nullopt;
+    }
+
+    return Repeat{.commands = commands, .condition = *condition};
 }
 
 } // namespace parser
