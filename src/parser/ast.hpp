@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <variant>
+#include <vector>
 
 namespace parser {
 
@@ -82,7 +83,20 @@ struct Write {
     Value value;
 };
 
-using Command = std::variant<Assignment, Read, Write>;
+struct Call {
+    Token name;
+    std::vector<Token> args;
+};
+
+struct While;
+
+// NOTE: Possibly need to use pointer for While
+using Command = std::variant<Assignment, Read, Write, While, Call>;
+
+struct While {
+    Condition condition;
+    std::vector<Command> commands;
+};
 
 // struct Command {
 //     CommandType type;
@@ -150,6 +164,7 @@ using Command = std::variant<Assignment, Read, Write>;
 
 struct Declaration {
     Token identifier;
+    std::optional<Token> array_size;
 };
 
 } // namespace parser

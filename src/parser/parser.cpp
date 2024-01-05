@@ -1,4 +1,6 @@
 #include "parser.hpp"
+#include <iostream>
+#include <optional>
 
 namespace parser {
 
@@ -12,11 +14,20 @@ auto Parser::chop() -> std::optional<Token> {
     return token;
 }
 
-auto Parser::peek() -> std::optional<Token> {
+auto Parser::match_and_chop(TokenType type) -> std::optional<Token> {
     if (tokens.empty())
         return std::nullopt;
     auto token = tokens.front();
+    if (token.token_type != type)
+        return std::nullopt;
+    tokens = tokens.subspan(1);
     return token;
+}
+
+auto Parser::peek(uint64_t offset) -> std::optional<Token> {
+    if (tokens.size() <= offset)
+        return std::nullopt;
+    return tokens[offset];
 }
 
 template <typename... TokenTypes>
@@ -66,25 +77,32 @@ auto Parser::expect(TokenTypes... types) -> std::optional<Token> {
 
 auto Parser::parse_declarations() -> std::optional<std::vector<Declaration>> {
     auto declarations = std::vector<Declaration>{};
+    std::optional<Token> array_size = std::nullopt;
 
-    const auto identifier = expect(TokenType::Pidentifier);
-
-    if (!identifier) {
-        return std::nullopt;
-    }
-
-    declarations.push_back(Declaration{.identifier = *identifier});
-
-    while (match_next(TokenType::Comma)) {
-        chop();
+    do {
         const auto identifier = expect(TokenType::Pidentifier);
 
         if (!identifier) {
             return std::nullopt;
         }
 
-        declarations.push_back(Declaration{.identifier = *identifier});
-    }
+        if (match_next(TokenType::Lbracket)) {
+            chop();
+
+            array_size = expect(TokenType::Num);
+
+            if (!array_size) {
+                return std::nullopt;
+            }
+
+            if (!expect(TokenType::Rbracket)) {
+                return std::nullopt;
+            }
+        }
+
+        declarations.push_back(
+            Declaration{.identifier = *identifier, .array_size = array_size});
+    } while (match_and_chop(TokenType::Comma).has_value());
 
     return declarations;
 }
@@ -159,13 +177,25 @@ auto Parser::parse_assignment() -> std::optional<Command> {
         return std::nullopt;
     }
 
+    if (!expect(TokenType::Semicolon)) {
+        return std::nullopt;
+    }
+
     return Assignment{.identifier = *identifier, .expression = *expression};
 }
 
 auto Parser::parse_read() -> std::optional<Command> {
+    if (!expect(TokenType::Read)) {
+        return std::nullopt;
+    }
+
     const auto identifier = expect(TokenType::Pidentifier);
 
     if (!identifier) {
+        return std::nullopt;
+    }
+
+    if (!expect(TokenType::Semicolon)) {
         return std::nullopt;
     }
 
@@ -173,9 +203,17 @@ auto Parser::parse_read() -> std::optional<Command> {
 }
 
 auto Parser::parse_write() -> std::optional<Command> {
+    if (!expect(TokenType::Write)) {
+        return std::nullopt;
+    }
+
     const auto value = parse_value();
 
     if (!value) {
+        return std::nullopt;
+    }
+
+    if (!expect(TokenType::Semicolon)) {
         return std::nullopt;
     }
 
@@ -248,9 +286,29 @@ auto Parser::parse_command() -> std::optional<Command> {
         return parse_read();
     case TokenType::Write:
         return parse_write();
-    case TokenType::Pidentifier:
-        return parse_assignment();
+    case TokenType::Pidentifier: {
+        const auto token_after_identifier = peek(1);
 
+        if (token_after_identifier.has_value() &&
+            token_after_identifier->token_type == TokenType::Lparen)
+            return parse_call();
+
+        const auto assignment = parse_assignment();
+
+        if (assignment)
+            return *assignment;
+
+        errors.push_back(
+            Error{.source = error_source,
+                  .message = "Expected ':=' or a '(<args>)' after identifier " +
+                             next->lexeme,
+                  .line = next->line,
+                  .column = next->column});
+
+        return std::nullopt;
+    }
+    case TokenType::While:
+        return parse_while();
     default:
         errors.push_back(Error{.source = error_source,
                                .message = "Unexpected token: " + next->lexeme,
@@ -375,10 +433,6 @@ auto Parser::parse_procedure() -> std::optional<Procedure> {
         }
 
         commands.push_back(*command);
-
-        if (!expect(TokenType::Semicolon)) {
-            return std::nullopt;
-        }
     }
 
     if (!expect(TokenType::End)) {
@@ -389,6 +443,73 @@ auto Parser::parse_procedure() -> std::optional<Procedure> {
                      .args = args,
                      .context = Context{.declarations = *declarations,
                                         .commands = commands}};
+}
+
+auto Parser::parse_while() -> std::optional<Command> {
+    if (!expect(TokenType::While)) {
+        return std::nullopt;
+    }
+
+    const auto condition = parse_condition();
+
+    if (!condition) {
+        return std::nullopt;
+    }
+
+    if (!expect(TokenType::Do)) {
+        return std::nullopt;
+    }
+
+    auto commands = std::vector<Command>{};
+
+    while (!match_next(TokenType::EndWhile)) {
+        const auto command = parse_command();
+        if (!command) {
+            return std::nullopt;
+        }
+
+        commands.push_back(*command);
+    }
+
+    if (!expect(TokenType::EndWhile)) {
+        return std::nullopt;
+    }
+
+    return While{.condition = *condition, .commands = commands};
+}
+
+auto Parser::parse_call() -> std::optional<Command> {
+    const auto name = expect(TokenType::Pidentifier);
+
+    if (!name) {
+        return std::nullopt;
+    }
+
+    if (!expect(TokenType::Lparen)) {
+        return std::nullopt;
+    }
+
+    auto args = std::vector<Token>{};
+
+    while (match_next(TokenType::Pidentifier)) {
+        const auto next = chop();
+
+        args.push_back(*next);
+
+        if (match_next(TokenType::Comma)) {
+            chop();
+        }
+    }
+
+    if (!expect(TokenType::Rparen)) {
+        return std::nullopt;
+    }
+
+    if (!expect(TokenType::Semicolon)) {
+        return std::nullopt;
+    }
+
+    return Call{.name = *name, .args = args};
 }
 
 } // namespace parser

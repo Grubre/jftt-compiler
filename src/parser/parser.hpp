@@ -42,7 +42,8 @@ class Parser {
     auto parse_program() -> std::optional<program_type>;
     auto parse_procedure() -> std::optional<Procedure>;
     auto chop() -> std::optional<Token>;
-    auto peek() -> std::optional<Token>;
+    auto match_and_chop(TokenType type) -> std::optional<Token>;
+    auto peek(uint64_t offset = 0) -> std::optional<Token>;
     template <typename... TokenTypes>
     auto match_next(TokenTypes... expected) -> bool;
     template <typename... TokenTypes>
@@ -57,6 +58,8 @@ class Parser {
     auto parse_condition() -> std::optional<Condition>;
     auto parse_identifier() -> std::optional<Identifier>;
     auto parse_value() -> std::optional<Value>;
+    auto parse_while() -> std::optional<Command>;
+    auto parse_call() -> std::optional<Command>;
 
   private:
     std::span<Token> tokens;
