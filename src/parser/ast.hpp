@@ -76,7 +76,7 @@ struct Assignment {
 };
 
 struct Read {
-    Token identifier;
+    Identifier identifier;
 };
 
 struct Write {

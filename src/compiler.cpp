@@ -3,6 +3,7 @@
 #include <iostream>
 #include <optional>
 
+#include "emitter.hpp"
 #include "error.hpp"
 #include "lexer.hpp"
 #include "parser.hpp"
@@ -39,7 +40,7 @@ auto main(int argc, char **argv) -> int {
 
     for (auto &token : lexer) {
         if (token) {
-            std::cout << token->lexeme << std::endl;
+            // std::cout << token->lexeme << std::endl;
             tokens.push_back(*token);
         } else {
             display_error(token.error());
@@ -56,12 +57,26 @@ auto main(int argc, char **argv) -> int {
     auto program = parser.parse_program();
 
     if (program) {
-        std::cout << "Program parsed successfully!" << std::endl;
+        // std::cout << "Program parsed successfully!" << std::endl;
     } else {
         for (auto &error : parser.get_errors()) {
             display_error(error);
         }
         return 1;
+    }
+
+    auto emitter = emitter::Emitter(std::move(*program));
+
+    emitter.emit();
+
+    for (auto &line : emitter.get_lines()) {
+        const auto instruction = line.instruction;
+        const auto comment = line.comment;
+
+        std::cout << to_string(instruction);
+        if (!comment.empty())
+            std::cout << "\t\t#" << comment;
+        std::cout << std::endl;
     }
 
     return 0;

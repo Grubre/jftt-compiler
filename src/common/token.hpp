@@ -134,3 +134,15 @@ struct Token {
                line == other.line && column == other.column;
     }
 };
+
+namespace std {
+template <> struct hash<Token> {
+    std::size_t operator()(const Token &token) const {
+        return ((std::hash<std::string>()(token.lexeme) ^
+                 (std::hash<unsigned>()(token.line) << 1)) >>
+                1) ^
+               (std::hash<unsigned>()(token.column) << 1) ^
+               (std::hash<int>()(static_cast<int>(token.token_type)) << 1);
+    }
+};
+} // namespace std

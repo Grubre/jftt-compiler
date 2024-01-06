@@ -26,7 +26,7 @@ struct Procedure {
 };
 
 struct Program {
-    std::vector<Procedure> functions{};
+    std::vector<Procedure> procedures{};
     Context main;
 };
 

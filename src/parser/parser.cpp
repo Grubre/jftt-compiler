@@ -189,7 +189,7 @@ auto Parser::parse_read() -> std::optional<Command> {
         return std::nullopt;
     }
 
-    const auto identifier = expect(TokenType::Pidentifier);
+    const auto identifier = parse_identifier();
 
     if (!identifier) {
         return std::nullopt;
