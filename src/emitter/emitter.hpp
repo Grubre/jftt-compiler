@@ -37,15 +37,24 @@ class Emitter {
     void emit();
     void emit_procedure(const parser::Procedure &procedure);
 
+    void emit_comment(const Comment &comment);
+
+    void emit_command(const parser::Command &command);
     void emit_read(const parser::Identifier &identifier);
     void emit_write(const parser::Value &value);
+    void emit_assignment(const parser::Identifier &identifier,
+                         const parser::Expression &expression);
+    void emit_if(const parser::If &if_statement);
 
     void assign_var_memory();
 
     void backup_register(Register reg);
     void set_register(Register reg, uint64_t value);
+    void set_register(Register reg, const parser::Value &value);
+    void set_accumulator(const parser::Value &value);
     void set_mar(const parser::Identifier &identifier);
     void set_memory(const parser::Identifier &identifier);
+    void set_jump_location(Instruction &instruction, uint64_t location);
 
     auto get_lines() const -> const std::vector<Line> & { return lines; }
 

@@ -563,7 +563,9 @@ auto Parser::parse_if() -> std::optional<Command> {
         return std::nullopt;
     }
 
-    return If{.condition = *condition, .commands = commands};
+    return If{.condition = *condition,
+              .commands = commands,
+              .else_commands = else_commands};
 }
 
 auto Parser::parse_repeat() -> std::optional<Command> {

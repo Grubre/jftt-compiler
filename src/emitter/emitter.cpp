@@ -1,8 +1,19 @@
 #include "emitter.hpp"
+#include "ast.hpp"
+#include <iostream>
+#include <string>
 
 using namespace emitter;
 
+constexpr auto indent_level1 = 10;
+constexpr auto indent_level2 = 15;
+constexpr auto indent_level3 = 20;
+
 void Emitter::emit_procedure(const parser::Procedure &procedure) {}
+
+void Emitter::emit_comment(const Comment &comment) {
+    // lines.push_back(Line{comment});
+}
 
 void Emitter::set_mar(const parser::Identifier &identifier) {
     const auto location = variables[identifier.name.lexeme];
@@ -17,13 +28,35 @@ void Emitter::set_mar(const parser::Identifier &identifier) {
     set_register(Register::B, location.address + offset);
 }
 
+void Emitter::set_jump_location(Instruction &instruction, uint64_t location) {
+    std::visit(overloaded{[&](Jump &jump) { jump.line = location; },
+                          [&](Jpos &jpos) { jpos.line = location; },
+                          [&](Jzero &jzero) { jzero.line = location; },
+                          [&](auto arg) { assert(false); }},
+               instruction);
+}
+
+void Emitter::set_accumulator(const parser::Value &value) {
+    if (std::holds_alternative<parser::Num>(value)) {
+        const auto number = std::get<parser::Num>(value);
+        set_register(Register::A, std::stoull(number.lexeme));
+    } else {
+        const auto identifier = std::get<parser::Identifier>(value);
+        set_mar(identifier);
+        lines.push_back(Line{Load{Register::B}});
+    }
+}
+
+/// Store the value in the accumulator in the memory location specified by the
+/// identifier (memory[B] <- A)
 void Emitter::set_memory(const parser::Identifier &identifier) {
     set_mar(identifier);
     lines.push_back(Line{Store{Register::B}});
 }
 
 void Emitter::emit_read(const parser::Identifier &identifier) {
-    lines.push_back(Line{Read{}, "Read into " + identifier.name.lexeme});
+    emit_comment(Comment{"Read into " + identifier.name.lexeme});
+    lines.push_back(Line{Read{}});
 
     set_memory(identifier);
 }
@@ -31,13 +64,187 @@ void Emitter::emit_read(const parser::Identifier &identifier) {
 void Emitter::emit_write(const parser::Value &value) {
     if (std::holds_alternative<parser::Num>(value)) {
         const auto number = std::get<parser::Num>(value);
-        set_register(Register::B, std::stoull(number.lexeme));
-        lines.push_back(Line{Write{}, "Write " + number.lexeme});
+        emit_comment(Comment{"Write " + number.lexeme});
+        set_accumulator(value);
     } else {
         const auto identifier = std::get<parser::Identifier>(value);
+        emit_comment(Comment{"Write " + identifier.name.lexeme});
         set_mar(identifier);
         lines.push_back(Line{Load{Register::B}});
-        lines.push_back(Line{Write{}, "Write " + identifier.name.lexeme});
+    }
+    lines.push_back(Line{Write{}});
+}
+
+void Emitter::emit_assignment(const parser::Identifier &identifier,
+                              const parser::Expression &expression) {
+    if (std::holds_alternative<parser::Value>(expression)) {
+        const auto &value = std::get<parser::Value>(expression);
+
+        set_accumulator(value);
+    } else {
+        const auto &binary = std::get<parser::BinaryExpression>(expression);
+
+        set_accumulator(binary.lhs);
+        set_register(Register::C, binary.rhs);
+
+        switch (binary.op.token_type) {
+        case TokenType::Plus:
+            lines.push_back(Line{Add{Register::C}});
+            break;
+        case TokenType::Minus:
+            lines.push_back(Line{Sub{Register::C}});
+            break;
+        default:
+            std::cerr << "Operator " << binary.op.lexeme << " not implemented"
+                      << std::endl;
+            assert(false);
+        }
+    }
+
+    set_memory(identifier);
+}
+
+void Emitter::emit_if(const parser::If &if_statement) {
+    // Emit the condition
+    auto jumps_if_false = std::vector<uint64_t>{};
+    auto jumps_if_true = std::vector<uint64_t>{};
+    auto jumps_to_else_end = std::vector<uint64_t>{};
+
+    auto jump_if_false = [&](Line line) {
+        lines.push_back(line);
+        jumps_if_false.push_back(lines.size() - 1);
+    };
+
+    auto jump_if_true = [&](Line line) {
+        lines.push_back(line);
+        jumps_if_true.push_back(lines.size() - 1);
+    };
+
+    auto jump_to_else_end = [&](Line line) {
+        lines.push_back(line);
+        jumps_to_else_end.push_back(lines.size() - 1);
+    };
+
+    auto subtract = [&](Register lhs, Register rhs) {
+        if (lhs == Register::A) {
+            set_register(rhs, if_statement.condition.rhs);
+            set_register(lhs, if_statement.condition.lhs);
+        } else {
+            set_register(lhs, if_statement.condition.lhs);
+            set_register(rhs, if_statement.condition.rhs);
+        }
+        lines.push_back(Line{Sub{Register::C}});
+    };
+
+    const std::string comment =
+        std::string{"Jump to "} +
+        (if_statement.else_commands.has_value() ? "else" : "endif");
+
+    emit_comment(Comment{"If statement"});
+    emit_comment(Comment{"Condition:", indent_level2});
+
+    switch (if_statement.condition.op.token_type) {
+    case TokenType::LessEquals:
+        subtract(Register::A, Register::C);
+        jump_if_false(Line{Jpos{0}, comment + " if >="});
+        break;
+
+    case TokenType::GreaterEquals:
+        subtract(Register::C, Register::A);
+        jump_if_false(Line{Jpos{0}, comment + " if <="});
+        break;
+
+    case TokenType::Equals:
+        // We have to check a >= b and a <= b
+
+        // a >= b
+        subtract(Register::A, Register::C);
+        jump_if_false(Line{Jpos{1}, comment + " if > (1)"});
+
+        // a <= b
+        subtract(Register::C, Register::A);
+        jump_if_false(Line{Jpos{1}, comment + " if < (2)"});
+
+        break;
+    case TokenType::BangEquals:
+        // We also check a >= b and a <= b but we only jump to the body
+        // at least one is false
+
+        // a >= b
+        subtract(Register::A, Register::C);
+        jump_if_true(Line{Jpos{1}, comment + " if > (1)"});
+
+        // a <= b
+        subtract(Register::C, Register::A);
+        jump_if_true(Line{Jpos{1}, comment + " if < (2)"});
+
+        jump_if_false(Line{Jump{0}, comment + " if =="});
+
+        break;
+    case TokenType::Less:
+        // We check that a <= b but not that a >= b
+
+        // a >= b
+        subtract(Register::A, Register::C);
+        jump_if_false(Line{Jpos{0}, comment + " if >="});
+
+        // a <= b
+        subtract(Register::C, Register::A);
+        jump_if_true(Line{Jpos{0}, "Jump to body if <"});
+
+        jump_if_false(Line{Jump{0}, comment + " if =="});
+        break;
+    case TokenType::Greater:
+        // We check that a >= b but not that a <= b
+
+        // a <= b
+        subtract(Register::C, Register::A);
+        jump_if_false(Line{Jpos{0}, comment + " if <="});
+
+        // a >= b
+        subtract(Register::A, Register::C);
+        jump_if_true(Line{Jpos{0}, "Jump to body if >"});
+
+        jump_if_false(Line{Jump{0}, comment + " if =="});
+        break;
+    default:
+        std::cerr << "Operator " << if_statement.condition.op.lexeme
+                  << " not implemented" << std::endl;
+        assert(false);
+    }
+
+    const auto body_start = lines.size();
+
+    emit_comment(Comment{"Body:", indent_level2});
+    for (const auto &command : if_statement.commands) {
+        emit_command(command);
+    }
+
+    if (if_statement.else_commands.has_value()) {
+        jump_to_else_end(Line{Jump{0}, comment + " endif"});
+    }
+
+    const auto body_end = lines.size();
+
+    for (auto i : jumps_if_true) {
+        set_jump_location(lines[i].instruction, body_start);
+    }
+
+    for (auto i : jumps_if_false) {
+        set_jump_location(lines[i].instruction, body_end);
+    }
+
+    if (if_statement.else_commands.has_value()) {
+        emit_comment(Comment{"Else Body:", indent_level2});
+        for (const auto &command : if_statement.else_commands.value()) {
+            emit_command(command);
+        }
+
+        const auto else_end = lines.size();
+
+        for (auto i : jumps_to_else_end) {
+            set_jump_location(lines[i].instruction, else_end);
+        }
     }
 }
 
@@ -48,6 +255,22 @@ void Emitter::set_register(Register reg, uint64_t value) {
         Line{Rst{reg}, "\t" + register_str + " <- " + std::to_string(value)});
     for (auto i = 0; i < value; i++) {
         lines.push_back(Line{Inc{reg}});
+    }
+}
+
+void Emitter::set_register(Register reg, const parser::Value &value) {
+    if (reg == Register::A) {
+        set_accumulator(value);
+        return;
+    }
+    if (std::holds_alternative<parser::Num>(value)) {
+        const auto number = std::get<parser::Num>(value);
+        set_register(reg, std::stoull(number.lexeme));
+    } else {
+        const auto identifier = std::get<parser::Identifier>(value);
+        set_mar(identifier);
+        lines.push_back(Line{Load{Register::B}});
+        lines.push_back(Line{Put{reg}});
     }
 }
 
@@ -70,6 +293,16 @@ void Emitter::assign_var_memory() {
     }
 }
 
+void Emitter::emit_command(const parser::Command &command) {
+    std::visit(
+        overloaded{
+            [&](const parser::Read &read) { emit_read(read.identifier); },
+            [&](const parser::Write &write) { emit_write(write.value); },
+            [&](const parser::If &if_statement) { emit_if(if_statement); },
+            [&](auto arg) { assert(false); }},
+        command);
+}
+
 void Emitter::emit() {
     // for (const auto &procedure : program.procedures) {
     //     emit_procedure(procedure);
@@ -78,12 +311,7 @@ void Emitter::emit() {
     assign_var_memory();
 
     for (const auto &command : program.main.commands) {
-        std::visit(
-            overloaded{
-                [&](const parser::Read &read) { emit_read(read.identifier); },
-                [&](const parser::Write &write) { emit_write(write.value); },
-                [&](auto arg) { assert(false); }},
-            command);
+        emit_command(command);
     }
 
     lines.push_back(Line{Halt{}, "Halt"});

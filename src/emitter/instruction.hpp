@@ -92,65 +92,74 @@ struct Jumpr {
 
 struct Halt {};
 
+struct Comment {
+    std::string comment;
+    uint64_t indent = 10;
+};
 using Instruction =
     std::variant<Read, Write, Load, Store, Add, Sub, Get, Put, Rst, Inc, Dec,
-                 Shl, Shr, Jump, Jpos, Jzero, Strk, Jumpr, Halt>;
+                 Shl, Shr, Jump, Jpos, Jzero, Strk, Jumpr, Halt, Comment>;
 
 inline auto to_string(const Instruction &instruction) -> std::string {
-    return std::visit(overloaded{
-                          [](const Read &) -> std::string { return "READ"; },
-                          [](const Write &) -> std::string { return "WRITE"; },
-                          [](const Load &load) -> std::string {
-                              return "LOAD " + to_string(load.address);
-                          },
-                          [](const Store &store) -> std::string {
-                              return "STORE " + to_string(store.address);
-                          },
-                          [](const Add &add) -> std::string {
-                              return "ADD " + to_string(add.address);
-                          },
-                          [](const Sub &sub) -> std::string {
-                              return "SUB " + to_string(sub.address);
-                          },
-                          [](const Get &get) -> std::string {
-                              return "GET " + to_string(get.address);
-                          },
-                          [](const Put &put) -> std::string {
-                              return "PUT " + to_string(put.address);
-                          },
-                          [](const Rst &rst) -> std::string {
-                              return "RST " + to_string(rst.address);
-                          },
-                          [](const Inc &inc) -> std::string {
-                              return "INC " + to_string(inc.address);
-                          },
-                          [](const Dec &dec) -> std::string {
-                              return "DEC " + to_string(dec.address);
-                          },
-                          [](const Shl &shl) -> std::string {
-                              return "SHL " + to_string(shl.address);
-                          },
-                          [](const Shr &shr) -> std::string {
-                              return "SHR " + to_string(shr.address);
-                          },
-                          [](const Jump &jump) -> std::string {
-                              return "JUMP " + std::to_string(jump.line);
-                          },
-                          [](const Jpos &jpos) -> std::string {
-                              return "JPOS " + std::to_string(jpos.line);
-                          },
-                          [](const Jzero &jzero) -> std::string {
-                              return "JZERO " + std::to_string(jzero.line);
-                          },
-                          [](const Strk &strk) -> std::string {
-                              return "STRK " + to_string(strk.reg);
-                          },
-                          [](const Jumpr &jumpr) -> std::string {
-                              return "JUMPR " + to_string(jumpr.reg);
-                          },
-                          [](const Halt &) -> std::string { return "HALT"; },
-                      },
-                      instruction);
+    return std::visit(
+        overloaded{[](const Read &) -> std::string { return "READ"; },
+                   [](const Write &) -> std::string { return "WRITE"; },
+                   [](const Load &load) -> std::string {
+                       return "LOAD " + to_string(load.address);
+                   },
+                   [](const Store &store) -> std::string {
+                       return "STORE " + to_string(store.address);
+                   },
+                   [](const Add &add) -> std::string {
+                       return "ADD " + to_string(add.address);
+                   },
+                   [](const Sub &sub) -> std::string {
+                       return "SUB " + to_string(sub.address);
+                   },
+                   [](const Get &get) -> std::string {
+                       return "GET " + to_string(get.address);
+                   },
+                   [](const Put &put) -> std::string {
+                       return "PUT " + to_string(put.address);
+                   },
+                   [](const Rst &rst) -> std::string {
+                       return "RST " + to_string(rst.address);
+                   },
+                   [](const Inc &inc) -> std::string {
+                       return "INC " + to_string(inc.address);
+                   },
+                   [](const Dec &dec) -> std::string {
+                       return "DEC " + to_string(dec.address);
+                   },
+                   [](const Shl &shl) -> std::string {
+                       return "SHL " + to_string(shl.address);
+                   },
+                   [](const Shr &shr) -> std::string {
+                       return "SHR " + to_string(shr.address);
+                   },
+                   [](const Jump &jump) -> std::string {
+                       return "JUMP " + std::to_string(jump.line);
+                   },
+                   [](const Jpos &jpos) -> std::string {
+                       return "JPOS " + std::to_string(jpos.line);
+                   },
+                   [](const Jzero &jzero) -> std::string {
+                       return "JZERO " + std::to_string(jzero.line);
+                   },
+                   [](const Strk &strk) -> std::string {
+                       return "STRK " + to_string(strk.reg);
+                   },
+                   [](const Jumpr &jumpr) -> std::string {
+                       return "JUMPR " + to_string(jumpr.reg);
+                   },
+                   [](const Halt &) -> std::string { return "HALT"; },
+                   [](const Comment &comment) -> std::string {
+                       std::string str = "#";
+                       for (auto i = 0u; i < comment.indent; i++)
+                           str += "=";
+                       return str + " " + comment.comment;
+                   }},
+        instruction);
 }
 
 struct Line {
