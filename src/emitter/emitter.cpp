@@ -15,6 +15,7 @@ void Emitter::emit_comment(const Comment &comment) {
     // lines.push_back(Line{comment});
 }
 
+/// Sets the value of register B (B <- id)
 void Emitter::set_mar(const parser::Identifier &identifier) {
     const auto location = variables[identifier.name.lexeme];
     auto offset = 0u;
@@ -75,33 +76,35 @@ void Emitter::emit_write(const parser::Value &value) {
     lines.push_back(Line{Write{}});
 }
 
-void Emitter::emit_assignment(const parser::Identifier &identifier,
-                              const parser::Expression &expression) {
-    if (std::holds_alternative<parser::Value>(expression)) {
-        const auto &value = std::get<parser::Value>(expression);
+void Emitter::emit_assignment(const parser::Assignment &assignment) {
+    if (std::holds_alternative<parser::Value>(assignment.expression)) {
+        const auto &value = std::get<parser::Value>(assignment.expression);
 
         set_accumulator(value);
-    } else {
-        const auto &binary = std::get<parser::BinaryExpression>(expression);
-
-        set_accumulator(binary.lhs);
-        set_register(Register::C, binary.rhs);
-
-        switch (binary.op.token_type) {
-        case TokenType::Plus:
-            lines.push_back(Line{Add{Register::C}});
-            break;
-        case TokenType::Minus:
-            lines.push_back(Line{Sub{Register::C}});
-            break;
-        default:
-            std::cerr << "Operator " << binary.op.lexeme << " not implemented"
-                      << std::endl;
-            assert(false);
-        }
+        set_memory(assignment.identifier);
+        return;
     }
 
-    set_memory(identifier);
+    const auto &binary =
+        std::get<parser::BinaryExpression>(assignment.expression);
+
+    set_register(Register::C, binary.rhs);
+    set_accumulator(binary.lhs);
+
+    switch (binary.op.token_type) {
+    case TokenType::Plus:
+        lines.push_back(Line{Add{Register::C}});
+        break;
+    case TokenType::Minus:
+        lines.push_back(Line{Sub{Register::C}});
+        break;
+    default:
+        std::cerr << "Operator " << binary.op.lexeme << " not implemented"
+                  << std::endl;
+        assert(false);
+    }
+
+    set_memory(assignment.identifier);
 }
 
 auto Emitter::emit_condition(const parser::Condition &condition,
@@ -284,6 +287,36 @@ void Emitter::emit_repeat(const parser::Repeat &repeat) {
     }
 }
 
+void Emitter::emit_while(const parser::While &while_statement) {
+    emit_comment(Comment{"While statement"});
+
+    // Emit the condition
+    const std::string if_false_comment = "Jump to while end";
+
+    const auto condition_start = lines.size();
+
+    const auto [jumps_if_false, jumps_if_true] =
+        emit_condition(while_statement.condition, if_false_comment);
+
+    const auto body_start = lines.size();
+
+    for (const auto &command : while_statement.commands) {
+        emit_command(command);
+    }
+
+    lines.push_back(Line{Jump{condition_start}, "Jump to condition"});
+
+    const auto body_end = lines.size();
+
+    for (auto i : jumps_if_true) {
+        set_jump_location(lines[i].instruction, body_start);
+    }
+
+    for (auto i : jumps_if_false) {
+        set_jump_location(lines[i].instruction, body_end);
+    }
+}
+
 void Emitter::set_register(Register reg, uint64_t value) {
     const auto register_str =
         reg == Register::B ? "MAR(reg B)" : "Reg " + to_string(reg);
@@ -336,6 +369,12 @@ void Emitter::emit_command(const parser::Command &command) {
             [&](const parser::Write &write) { emit_write(write.value); },
             [&](const parser::If &if_statement) { emit_if(if_statement); },
             [&](const parser::Repeat &repeat) { emit_repeat(repeat); },
+            [&](const parser::Assignment &assignment) {
+                emit_assignment(assignment);
+            },
+            [&](const parser::While &while_statement) {
+                emit_while(while_statement);
+            },
             [&](auto arg) { assert(false); }},
         command);
 }

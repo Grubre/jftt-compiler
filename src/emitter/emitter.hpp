@@ -49,10 +49,10 @@ class Emitter {
     void emit_command(const parser::Command &command);
     void emit_read(const parser::Identifier &identifier);
     void emit_write(const parser::Value &value);
-    void emit_assignment(const parser::Identifier &identifier,
-                         const parser::Expression &expression);
+    void emit_assignment(const parser::Assignment &assignment);
     void emit_if(const parser::If &if_statement);
     void emit_repeat(const parser::Repeat &repeat);
+    void emit_while(const parser::While &while_statement);
 
     void assign_var_memory();
 
