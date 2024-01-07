@@ -18,6 +18,11 @@ struct MemoryLocation {
 
 using Location = MemoryLocation;
 
+struct Jumps {
+    std::vector<uint64_t> jumps_if_false;
+    std::vector<uint64_t> jumps_if_true;
+};
+
 class Emitter {
   public:
     Emitter() = delete;
@@ -38,6 +43,8 @@ class Emitter {
     void emit_procedure(const parser::Procedure &procedure);
 
     void emit_comment(const Comment &comment);
+    auto emit_condition(const parser::Condition &condition,
+                        const std::string &comment_when_false) -> Jumps;
 
     void emit_command(const parser::Command &command);
     void emit_read(const parser::Identifier &identifier);

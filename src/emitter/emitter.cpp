@@ -104,11 +104,10 @@ void Emitter::emit_assignment(const parser::Identifier &identifier,
     set_memory(identifier);
 }
 
-void Emitter::emit_if(const parser::If &if_statement) {
-    // Emit the condition
+auto Emitter::emit_condition(const parser::Condition &condition,
+                             const std::string &comment_when_false) -> Jumps {
     auto jumps_if_false = std::vector<uint64_t>{};
     auto jumps_if_true = std::vector<uint64_t>{};
-    auto jumps_to_else_end = std::vector<uint64_t>{};
 
     auto jump_if_false = [&](Line line) {
         lines.push_back(line);
@@ -120,38 +119,28 @@ void Emitter::emit_if(const parser::If &if_statement) {
         jumps_if_true.push_back(lines.size() - 1);
     };
 
-    auto jump_to_else_end = [&](Line line) {
-        lines.push_back(line);
-        jumps_to_else_end.push_back(lines.size() - 1);
-    };
-
     auto subtract = [&](Register lhs, Register rhs) {
         if (lhs == Register::A) {
-            set_register(rhs, if_statement.condition.rhs);
-            set_register(lhs, if_statement.condition.lhs);
+            set_register(rhs, condition.rhs);
+            set_register(lhs, condition.lhs);
         } else {
-            set_register(lhs, if_statement.condition.lhs);
-            set_register(rhs, if_statement.condition.rhs);
+            set_register(lhs, condition.lhs);
+            set_register(rhs, condition.rhs);
         }
         lines.push_back(Line{Sub{Register::C}});
     };
 
-    const std::string comment =
-        std::string{"Jump to "} +
-        (if_statement.else_commands.has_value() ? "else" : "endif");
-
-    emit_comment(Comment{"If statement"});
     emit_comment(Comment{"Condition:", indent_level2});
 
-    switch (if_statement.condition.op.token_type) {
+    switch (condition.op.token_type) {
     case TokenType::LessEquals:
         subtract(Register::A, Register::C);
-        jump_if_false(Line{Jpos{0}, comment + " if >="});
+        jump_if_false(Line{Jpos{0}, comment_when_false + " if >="});
         break;
 
     case TokenType::GreaterEquals:
         subtract(Register::C, Register::A);
-        jump_if_false(Line{Jpos{0}, comment + " if <="});
+        jump_if_false(Line{Jpos{0}, comment_when_false + " if <="});
         break;
 
     case TokenType::Equals:
@@ -159,11 +148,11 @@ void Emitter::emit_if(const parser::If &if_statement) {
 
         // a >= b
         subtract(Register::A, Register::C);
-        jump_if_false(Line{Jpos{1}, comment + " if > (1)"});
+        jump_if_false(Line{Jpos{1}, comment_when_false + " if > (1)"});
 
         // a <= b
         subtract(Register::C, Register::A);
-        jump_if_false(Line{Jpos{1}, comment + " if < (2)"});
+        jump_if_false(Line{Jpos{1}, comment_when_false + " if < (2)"});
 
         break;
     case TokenType::BangEquals:
@@ -172,13 +161,13 @@ void Emitter::emit_if(const parser::If &if_statement) {
 
         // a >= b
         subtract(Register::A, Register::C);
-        jump_if_true(Line{Jpos{1}, comment + " if > (1)"});
+        jump_if_true(Line{Jpos{1}, comment_when_false + " if > (1)"});
 
         // a <= b
         subtract(Register::C, Register::A);
-        jump_if_true(Line{Jpos{1}, comment + " if < (2)"});
+        jump_if_true(Line{Jpos{1}, comment_when_false + " if < (2)"});
 
-        jump_if_false(Line{Jump{0}, comment + " if =="});
+        jump_if_false(Line{Jump{0}, comment_when_false + " if =="});
 
         break;
     case TokenType::Less:
@@ -186,32 +175,53 @@ void Emitter::emit_if(const parser::If &if_statement) {
 
         // a >= b
         subtract(Register::A, Register::C);
-        jump_if_false(Line{Jpos{0}, comment + " if >="});
+        jump_if_false(Line{Jpos{0}, comment_when_false + " if >="});
 
         // a <= b
         subtract(Register::C, Register::A);
         jump_if_true(Line{Jpos{0}, "Jump to body if <"});
 
-        jump_if_false(Line{Jump{0}, comment + " if =="});
+        jump_if_false(Line{Jump{0}, comment_when_false + " if =="});
         break;
     case TokenType::Greater:
         // We check that a >= b but not that a <= b
 
         // a <= b
         subtract(Register::C, Register::A);
-        jump_if_false(Line{Jpos{0}, comment + " if <="});
+        jump_if_false(Line{Jpos{0}, comment_when_false + " if <="});
 
         // a >= b
         subtract(Register::A, Register::C);
         jump_if_true(Line{Jpos{0}, "Jump to body if >"});
 
-        jump_if_false(Line{Jump{0}, comment + " if =="});
+        jump_if_false(Line{Jump{0}, comment_when_false + " if =="});
         break;
     default:
-        std::cerr << "Operator " << if_statement.condition.op.lexeme
-                  << " not implemented" << std::endl;
+        std::cerr << "Operator " << condition.op.lexeme << " not implemented"
+                  << std::endl;
         assert(false);
     }
+
+    return {jumps_if_false, jumps_if_true};
+}
+
+void Emitter::emit_if(const parser::If &if_statement) {
+    auto jumps_to_else_end = std::vector<uint64_t>{};
+
+    auto jump_to_else_end = [&](Line line) {
+        lines.push_back(line);
+        jumps_to_else_end.push_back(lines.size() - 1);
+    };
+
+    // Emit the condition
+    const std::string comment =
+        std::string{"Jump to "} +
+        (if_statement.else_commands.has_value() ? "else" : "endif");
+
+    const auto [jumps_if_false, jumps_if_true] =
+        emit_condition(if_statement.condition, comment);
+
+    emit_comment(Comment{"If statement"});
 
     const auto body_start = lines.size();
 
