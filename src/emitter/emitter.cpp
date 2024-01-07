@@ -258,6 +258,32 @@ void Emitter::emit_if(const parser::If &if_statement) {
     }
 }
 
+void Emitter::emit_repeat(const parser::Repeat &repeat) {
+    emit_comment(Comment{"Repeat statement"});
+
+    const auto body_start = lines.size();
+
+    for (const auto &command : repeat.commands) {
+        emit_command(command);
+    }
+
+    // Emit the condition
+    const std::string if_false_comment = "Jump to repeat end";
+
+    const auto [jumps_if_false, jumps_if_true] =
+        emit_condition(repeat.condition, if_false_comment);
+
+    const auto body_end = lines.size();
+
+    for (auto i : jumps_if_true) {
+        set_jump_location(lines[i].instruction, body_start);
+    }
+
+    for (auto i : jumps_if_false) {
+        set_jump_location(lines[i].instruction, body_end);
+    }
+}
+
 void Emitter::set_register(Register reg, uint64_t value) {
     const auto register_str =
         reg == Register::B ? "MAR(reg B)" : "Reg " + to_string(reg);
@@ -309,6 +335,7 @@ void Emitter::emit_command(const parser::Command &command) {
             [&](const parser::Read &read) { emit_read(read.identifier); },
             [&](const parser::Write &write) { emit_write(write.value); },
             [&](const parser::If &if_statement) { emit_if(if_statement); },
+            [&](const parser::Repeat &repeat) { emit_repeat(repeat); },
             [&](auto arg) { assert(false); }},
         command);
 }
