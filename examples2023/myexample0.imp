@@ -1,0 +1,13 @@
+# Równanie diofantyczne mx-ny=nwd(m,n) (z)
+
+PROCEDURE print(a) IS
+IN
+ WRITE a;
+END
+
+PROGRAM IS
+  a, b
+IN
+    READ a;
+    b := 1024;
+END
