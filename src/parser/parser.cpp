@@ -353,9 +353,12 @@ auto Parser::parse_context() -> std::optional<Context> {
 
 auto Parser::parse_program() -> std::optional<program_type> {
     while (match_next(TokenType::Procedure)) {
-        if (!parse_procedure()) {
+        const auto procedure = parse_procedure();
+        if (!procedure) {
             return std::nullopt;
         }
+
+        program.procedures.push_back(*procedure);
     }
 
     expect(TokenType::Program);

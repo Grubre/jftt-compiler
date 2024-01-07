@@ -5,12 +5,37 @@
 #include <algorithm>
 #include <stack>
 #include <unordered_map>
+namespace emitter {
+struct Variable {
+    std::string source;
+    std::string name;
+
+    bool operator==(const Variable &other) const {
+        return source == other.source && name == other.name;
+    }
+};
+} // namespace emitter
+
+namespace std {
+template <> struct hash<emitter::Variable> {
+    size_t operator()(const emitter::Variable &v) const {
+        // Use std::hash for std::string and combine the hashes
+        return hash<string>()(v.source) ^
+               (hash<string>()(v.name) << 1);
+    }
+};
+} // namespace std
 
 namespace emitter {
 
 struct MemoryLocation {
     uint64_t address;
     uint64_t size;
+};
+
+struct Procedure {
+    uint64_t entrypoint;
+    const parser::Procedure* procedure;
 };
 
 // REGISTER A - Accumulator
@@ -29,7 +54,7 @@ class Emitter {
     Emitter(parser::Program &&program) : program(std::move(program)) {
         // The first jump jumps to the main procedure but we don't know where
         // that is yet so we just put a placeholder address here (0)
-        // lines.push_back(Line{Jump{0}, "Jump to main"});
+        lines.push_back(Line{Jump{0}, "Jump to main"});
 
         registers.push(Register::C);
         registers.push(Register::D);
@@ -53,28 +78,45 @@ class Emitter {
     void emit_if(const parser::If &if_statement);
     void emit_repeat(const parser::Repeat &repeat);
     void emit_while(const parser::While &while_statement);
+    void emit_call(const parser::Call &call);
 
-    void assign_var_memory();
+    void assign_memory(const std::vector<parser::Declaration> &declarations);
 
     void backup_register(Register reg);
     void set_register(Register reg, uint64_t value);
     void set_register(Register reg, const parser::Value &value);
     void set_accumulator(const parser::Value &value);
+    void set_accumulator(uint64_t value);
+    void set_mar(uint64_t value);
     void set_mar(const parser::Identifier &identifier);
+    void set_memory(uint64_t value);
     void set_memory(const parser::Identifier &identifier);
     void set_jump_location(Instruction &instruction, uint64_t location);
 
     auto get_lines() const -> const std::vector<Line> & { return lines; }
 
   private:
-    std::unordered_map<std::string, Location> variables{};
     parser::Program program;
-    std::unordered_map<Token, uint64_t> procedure_entrypoints{};
+    std::unordered_map<std::string, Procedure> procedures{};
     std::vector<Line> lines{};
     std::vector<Error> errors{};
 
+    std::string current_source = "";
+
     uint64_t stack_pointer = 0;
     std::stack<Register> registers{};
+    std::unordered_map<Variable, Location> variables{};
+    std::unordered_map<Variable, uint64_t> inouts{};
 };
 
 } // namespace emitter
+// def multiply_logarithmically(a, b):
+//     result = 0
+//
+//     while b > 0:
+//         if b % 2 == 1:
+//             result += a
+//         a *= 2
+//         b //= 2
+//
+//     return result
