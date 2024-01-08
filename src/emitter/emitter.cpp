@@ -1,6 +1,7 @@
 #include "emitter.hpp"
 #include "ast.hpp"
 #include <iostream>
+#include <limits>
 #include <string>
 
 using namespace emitter;
@@ -23,7 +24,8 @@ void Emitter::emit_procedure(const parser::Procedure &procedure) {
                        Procedure{entrypoint, &procedure});
 
     for (const auto &arg : procedure.args) {
-        inouts[Variable{current_source, arg.identifier.lexeme}] = stack_pointer;
+        variables[Variable{current_source, arg.identifier.lexeme}] =
+            MemoryLocation{stack_pointer, std::numeric_limits<uint64_t>::max()};
         stack_pointer++;
     }
 
@@ -40,9 +42,7 @@ void Emitter::emit_comment(const Comment &comment) {
     // lines.push_back(Line{comment});
 }
 
-void Emitter::set_mar(uint64_t value) {
-    set_register(Register::B, value);
-}
+void Emitter::set_mar(uint64_t value) { set_register(Register::B, value); }
 
 /// Sets the value of register B (B <- id)
 void Emitter::set_mar(const parser::Identifier &identifier) {
@@ -125,20 +125,169 @@ void Emitter::emit_assignment(const parser::Assignment &assignment) {
         return;
     }
 
+    auto check_regd_geq_zero = [&](uint64_t offset) {
+        const auto jump_line = lines.size();
+        lines.push_back(Line{Get{Register::D}});
+        lines.push_back(
+            Line{Jzero{lines.size() + offset}, "Jump to end if reg D == 0"});
+        return jump_line;
+    };
+
     const auto &binary =
         std::get<parser::BinaryExpression>(assignment.expression);
 
     switch (binary.op.token_type) {
-    case TokenType::Plus:
+    case TokenType::Plus: {
         set_register(Register::C, binary.rhs);
         set_accumulator(binary.lhs);
         lines.push_back(Line{Add{Register::C}});
-        break;
+    } break;
     case TokenType::Minus:
         set_register(Register::C, binary.rhs);
         set_accumulator(binary.lhs);
         lines.push_back(Line{Sub{Register::C}});
         break;
+    case TokenType::Star: {
+        // Register C <- a
+        // Register D <- b
+        // Register F <- acc
+        set_register(Register::C, binary.lhs);
+        set_register(Register::D, binary.rhs);
+
+        lines.push_back(Line{Rst{Register::F}}); // p
+
+        const auto cond_line = check_regd_geq_zero(12);
+
+        // Check parity
+        lines.push_back(Line{Shr{Register::A}});
+        lines.push_back(Line{Shl{Register::A}});
+        lines.push_back(Line{Inc{Register::A}});
+        lines.push_back(Line{Sub{Register::D}});
+        const auto if_false_jump = lines.size() + 4;
+        // If not even, jump to endif
+        lines.push_back(Line{Jpos{if_false_jump}});
+
+        // otherwise p += a
+        lines.push_back(Line{Get{Register::F}});
+        lines.push_back(Line{Add{Register::C}});
+        lines.push_back(Line{Put{Register::F}});
+
+        lines.push_back(Line{Shl{Register::C}});
+        lines.push_back(Line{Shr{Register::D}});
+        lines.push_back(Line{Jump{cond_line}});
+
+        lines.push_back(Line{Get{Register::F}});
+    } break;
+    case TokenType::Slash: {
+        // Register C <- a
+        // Register D <- b
+        // Register F <- acc
+
+        set_register(Register::C, binary.lhs);
+        set_register(Register::D, binary.rhs);
+
+        lines.push_back(Line{Rst{Register::F}}); // p
+        lines.push_back(Line{Rst{Register::E}}); // tmp
+
+        const auto len = 21;
+        // test if b = 0
+        lines.push_back(Line{Get{Register::D}});
+        lines.push_back(
+            Line{Jzero{lines.size() + len}, "Jump to end if reg D == 0"});
+        // endif
+
+        // tmp := 1
+        lines.push_back(Line{Inc{Register::E}});
+
+        // while b <= a condition
+        lines.push_back(Line{Get{Register::D}});
+        lines.push_back(Line{Sub{Register::C}});
+        lines.push_back(Line{Jpos{lines.size() + 4}, "jump if a < b"});
+        // tmp <<= 1, b <<= 1
+        lines.push_back(Line{Shl{Register::E}});
+        lines.push_back(Line{Shl{Register::D}});
+        lines.push_back(Line{Jump{lines.size() - 5}});
+        // endwhile
+
+        // repeat
+        const auto repeat_until_entry = lines.size();
+        // if b <= a
+        lines.push_back(Line{Get{Register::D}});
+        lines.push_back(Line{Sub{Register::C}});
+        lines.push_back(Line{Jpos{lines.size() + 7}, "jump if a < b"});
+        // p+=tmp
+        lines.push_back(Line{Get{Register::F}});
+        lines.push_back(Line{Add{Register::E}});
+        lines.push_back(Line{Put{Register::F}});
+        // a -= b
+        lines.push_back(Line{Get{Register::C}});
+        lines.push_back(Line{Sub{Register::D}});
+        lines.push_back(Line{Put{Register::C}});
+        // endif
+
+        // b >>= 1, tmp >>= 1
+        lines.push_back(Line{Shr{Register::D}});
+        lines.push_back(Line{Shr{Register::E}});
+
+        lines.push_back(Line{Get{Register::E}});
+        lines.push_back(Line{Jpos{repeat_until_entry}, "jump if a < b"});
+
+        lines.push_back(Line{Get{Register::F}});
+    } break;
+    case TokenType::Percent: {
+        // Register C <- a
+        // Register D <- b
+        // Register F <- p
+        // Register E <- tmp
+
+        set_register(Register::C, binary.lhs);
+        set_register(Register::D, binary.rhs);
+
+        lines.push_back(Line{Rst{Register::F}, "p := 0"}); // p
+
+        const auto len = 21;
+        // test if b = 0
+        lines.push_back(Line{Get{Register::D}});
+        lines.push_back(
+            Line{Jzero{lines.size() + len}, "Jump to end if reg D == 0"});
+        // endif
+
+        // tmp := b
+        lines.push_back(Line{Get{Register::D}, "tmp := b"});
+        lines.push_back(Line{Put{Register::E}});
+
+        // while b <= a condition
+        lines.push_back(Line{Get{Register::D}, "check b <= a"});
+        lines.push_back(Line{Sub{Register::C}});
+        lines.push_back(Line{Jpos{lines.size() + 3}, "jump if a < b"});
+        // b <<= 1
+        lines.push_back(Line{Shl{Register::D}});
+        lines.push_back(Line{Jump{lines.size() - 4}});
+        // endwhile
+
+        // repeat
+        const auto repeat_until_entry = lines.size();
+        // b >>= 1
+        lines.push_back(Line{Shr{Register::D}, "b >>= 1"});
+        // if b <= a
+        lines.push_back(Line{Get{Register::D}, "Check b <= a"});
+        lines.push_back(Line{Sub{Register::C}});
+        lines.push_back(Line{Jpos{lines.size() + 4}, "jump if a < b"});
+        // a -= b
+        lines.push_back(Line{Get{Register::C}});
+        lines.push_back(Line{Sub{Register::D}});
+        lines.push_back(Line{Put{Register::C}});
+        // endif
+
+        // while tmp <= a
+        lines.push_back(Line{Get{Register::E}, "Check tmp <= a"});
+        lines.push_back(Line{Sub{Register::C}});
+        lines.push_back(Line{Jzero{repeat_until_entry}, "jump if a < tmp"});
+
+        lines.push_back(Line{Get{Register::C}});
+    }
+
+    break;
     default:
         std::cerr << "Operator " << binary.op.lexeme << " not implemented"
                   << std::endl;
@@ -408,16 +557,6 @@ void Emitter::emit_call(const parser::Call &call) {
         set_memory(inout_mem_location);
     }
 
-    set_register(Register::H, lines.size());
-
-    // NOTE: The problem is that H is set to value of lines.size() which
-    // is the last place in memory before we start setting H's value.
-    // But because setting the value requires a certain amount of instructions
-    // we have to incrementally emit instructions adding to H until we reach
-    // H = lines.size() + 1
-    //
-    // NOTE: After I finish this I only have to add multiplication, modulo and division
-
     lines.push_back(Line{Jump{procedures[call.name.lexeme].entrypoint},
                          "Jump to procedure " + call.name.lexeme});
 
@@ -425,9 +564,9 @@ void Emitter::emit_call(const parser::Call &call) {
 }
 
 void Emitter::set_register(Register reg, uint64_t value) {
-        const auto register_str =
+    const auto register_str =
         reg == Register::B ? "MAR(reg B)" : "Reg " + to_string(reg);
-    
+
     lines.push_back(
         Line{Rst{reg}, "\t" + register_str + " <- " + std::to_string(value)});
 
@@ -436,13 +575,13 @@ void Emitter::set_register(Register reg, uint64_t value) {
     }
     lines.push_back(Line{Inc{reg}});
     uint64_t acc = 1;
-    while(2 * acc <= value) {
+    while (2 * acc <= value) {
         lines.push_back(Line{Shl{reg}});
         acc *= 2;
     }
 
-    while(acc < value) {
-        lines.push_back(Line{Add{reg}});
+    while (acc < value) {
+        lines.push_back(Line{Inc{reg}});
         acc++;
     }
 }

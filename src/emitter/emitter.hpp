@@ -20,8 +20,7 @@ namespace std {
 template <> struct hash<emitter::Variable> {
     size_t operator()(const emitter::Variable &v) const {
         // Use std::hash for std::string and combine the hashes
-        return hash<string>()(v.source) ^
-               (hash<string>()(v.name) << 1);
+        return hash<string>()(v.source) ^ (hash<string>()(v.name) << 1);
     }
 };
 } // namespace std
@@ -35,7 +34,7 @@ struct MemoryLocation {
 
 struct Procedure {
     uint64_t entrypoint;
-    const parser::Procedure* procedure;
+    const parser::Procedure *procedure;
 };
 
 // REGISTER A - Accumulator
