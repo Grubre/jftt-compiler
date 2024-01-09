@@ -23,6 +23,21 @@ struct Procedure {
     Token name;
     std::vector<Arg> args{};
     Context context;
+
+    std::string signature() const {
+        std::string result = name.lexeme + "(";
+
+        for (const auto &arg : args) {
+            result += arg.identifier.lexeme + ", ";
+        }
+
+        if (!args.empty()) {
+            result.pop_back();
+            result.pop_back();
+        }
+
+        return result + ")";
+    }
 };
 
 struct Program {

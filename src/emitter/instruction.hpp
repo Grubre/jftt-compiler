@@ -95,6 +95,13 @@ struct Halt {};
 struct Comment {
     std::string comment;
     uint64_t indent = 10;
+
+    auto get_str() const -> std::string {
+        std::string str = "";
+        for (auto i = 0u; i < indent; i++)
+            str += "=";
+        return str + " " + comment;
+    }
 };
 using Instruction =
     std::variant<Read, Write, Load, Store, Add, Sub, Get, Put, Rst, Inc, Dec,

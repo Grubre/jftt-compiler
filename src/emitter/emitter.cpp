@@ -1,5 +1,6 @@
 #include "emitter.hpp"
 #include "ast.hpp"
+#include <format>
 #include <iostream>
 #include <limits>
 #include <string>
@@ -21,21 +22,55 @@ void Emitter::emit_procedure(const parser::Procedure &procedure) {
     const auto entrypoint = lines.size();
 
     procedures.emplace(procedure.name.lexeme,
-                       Procedure{entrypoint, &procedure});
+                       Procedure{entrypoint, stack_pointer, &procedure});
+
+    // we put the return address here
+    const auto return_address = stack_pointer;
+    stack_pointer++;
 
     for (const auto &arg : procedure.args) {
         variables[Variable{current_source, arg.identifier.lexeme}] =
-            MemoryLocation{stack_pointer, std::numeric_limits<uint64_t>::max()};
+            MemoryLocation{stack_pointer, 1, true};
         stack_pointer++;
     }
 
     assign_memory(procedure.context.declarations);
 
+    // Set the return address
+    lines.push_back(Line{Get{Register::H},
+                         std::format("procedure {}", procedure.signature())});
+    lines.push_back(Line{Inc{Register::H}, "setting the return address"});
+    lines.push_back(Line{Inc{Register::H}});
+    lines.push_back(Line{Get{Register::H}});
+    set_memory(return_address);
+
+    // TODO: Handle pointers
     for (const auto &command : procedure.context.commands) {
         emit_command(command);
     }
 
-    lines.push_back(Line{Jumpr{Register::H}, "Return to caller"});
+    set_mar(return_address);
+    lines.push_back(Line{Load{Register::B}});
+    lines.push_back(
+        Line{Jumpr{Register::A},
+             std::format("return from procedure {}", procedure.signature())});
+}
+
+auto Emitter::get_variable(const std::string &name) -> Location * {
+    if (!variables.contains({current_source, name})) {
+        return nullptr;
+    }
+    return &variables[{current_source, name}];
+}
+
+bool Emitter::is_pointer(const std::string &name) {
+    const auto var = get_variable(name);
+
+    if (!var) {
+        return false;
+    }
+
+    return var->is_pointer;
 }
 
 void Emitter::emit_comment(const Comment &comment) {
@@ -47,15 +82,52 @@ void Emitter::set_mar(uint64_t value) { set_register(Register::B, value); }
 /// Sets the value of register B (B <- id)
 void Emitter::set_mar(const parser::Identifier &identifier) {
     const auto location = variables[{current_source, identifier.name.lexeme}];
+
     auto offset = 0u;
+
+    bool indexed = false;
 
     if (identifier.index.has_value()) {
         // TODO: Handle indexing by variable
-        offset = std::stoull(identifier.index->lexeme);
-        // TODO: check if offset is within bounds
+        switch (identifier.index->token_type) {
+        case Pidentifier: {
+            lines.push_back(Line{Put{Register::F}, " <- backup A (1)"});
+            const auto &variable = get_variable(identifier.index->lexeme);
+            // NOTE: Can potentially break if variable is a pointer (?)
+            set_mar(variable->address);
+            lines.push_back(Line{Load{Register::B}});
+            set_register(Register::C, location.address);
+            lines.push_back(Line{Add{Register::C}});
+            lines.push_back(Line{Put{Register::B}});
+
+            lines.push_back(Line{Get{Register::F}, " <- backup A (2)"});
+
+            indexed = true;
+        } break;
+        case Num: {
+            offset = std::stoull(identifier.index->lexeme);
+            if (offset > location.size) {
+                // TODO: Add better error;
+                std::cerr << "Index outside bounds\n";
+                assert(false);
+            }
+        } break;
+        default:
+            std::cerr << "Invalid index\n";
+            assert(false);
+            break;
+        }
     }
 
-    set_register(Register::B, location.address + offset);
+    if (!indexed)
+        set_register(Register::B, location.address + offset);
+
+    if (is_pointer(identifier.name.lexeme)) {
+        lines.push_back(Line{Put{Register::G}, " <- pointer"});
+        lines.push_back(Line{Load{Register::B}});
+        lines.push_back(Line{Put{Register::B}});
+        lines.push_back(Line{Get{Register::G}});
+    }
 }
 
 void Emitter::set_jump_location(Instruction &instruction, uint64_t location) {
@@ -88,8 +160,8 @@ void Emitter::set_memory(uint64_t address) {
     lines.push_back(Line{Store{Register::B}});
 }
 
-/// Store the value in the accumulator in the memory location specified by the
-/// identifier (memory[B] <- A)
+/// Store the value in the accumulator in the memory location specified by
+/// the identifier (memory[B] <- A)
 void Emitter::set_memory(const parser::Identifier &identifier) {
     set_mar(identifier);
     lines.push_back(Line{Store{Register::B}});
@@ -468,11 +540,11 @@ void Emitter::emit_repeat(const parser::Repeat &repeat) {
 
     const auto body_end = lines.size();
 
-    for (auto i : jumps_if_true) {
+    for (auto i : jumps_if_false) {
         set_jump_location(lines[i].instruction, body_start);
     }
 
-    for (auto i : jumps_if_false) {
+    for (auto i : jumps_if_true) {
         set_jump_location(lines[i].instruction, body_end);
     }
 }
@@ -532,12 +604,20 @@ void Emitter::emit_call(const parser::Call &call) {
 
     const auto &procedure = procedures[call.name.lexeme].procedure;
 
-    for (auto i = 0u; i < num_args; i++) {
-        const auto variable_mem_location =
-            variables[{current_source, call.args[i].lexeme}];
+    const auto procedure_memory_entry = procedures[call.name.lexeme].memory_loc;
 
-        const auto inout_mem_location =
-            inouts[{current_source, procedure->args[i].identifier.lexeme}];
+    set_register(Register::G, procedure_memory_entry + 1);
+
+    for (auto i = 0u; i < num_args; i++) {
+        // Check if variable exists
+        if (!variables.contains({previous_source, call.args[i].lexeme})) {
+            std::cerr << "Variable " << call.args[i].lexeme << " not found"
+                      << std::endl;
+            exit(1);
+        }
+
+        const auto variable_mem_location =
+            variables[{previous_source, call.args[i].lexeme}];
 
         if (variable_mem_location.size == 1 && procedure->args[i].is_array) {
             // TODO: Better errors
@@ -553,10 +633,18 @@ void Emitter::emit_call(const parser::Call &call) {
             assert(false);
         }
 
-        set_accumulator(variable_mem_location.address);
-        set_memory(inout_mem_location);
+        if (variables[{previous_source, call.args[i].lexeme}].is_pointer) {
+            set_register(Register::B, variable_mem_location.address);
+            lines.push_back(Line{Load{Register::B}});
+        } else {
+            set_accumulator(variable_mem_location.address);
+        }
+
+        lines.push_back(Line{Store{Register::G}});
+        lines.push_back(Line{Inc{Register::G}});
     }
 
+    lines.push_back(Line{Strk{Register::H}, "Save return address"});
     lines.push_back(Line{Jump{procedures[call.name.lexeme].entrypoint},
                          "Jump to procedure " + call.name.lexeme});
 
@@ -667,4 +755,19 @@ void Emitter::emit() {
     }
 
     lines.push_back(Line{Halt{}, "Halt"});
+}
+
+void Emitter::emit_line(const Instruction &instruction) {
+    auto comment = std::string{};
+    if (!comments.empty()) {
+        comment = comments.top().get_str();
+        comments.pop();
+    }
+    lines.push_back(Line{instruction, comment});
+}
+void Emitter::push_comment(const Comment &comment) { comments.push(comment); }
+
+void Emitter::emit_line_with_comment(const Instruction &instruction,
+                                     const std::string &comment) {
+    lines.push_back(Line{instruction, comment});
 }

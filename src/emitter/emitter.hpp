@@ -30,10 +30,12 @@ namespace emitter {
 struct MemoryLocation {
     uint64_t address;
     uint64_t size;
+    bool is_pointer = false;
 };
 
 struct Procedure {
     uint64_t entrypoint;
+    uint64_t memory_loc;
     const parser::Procedure *procedure;
 };
 
@@ -79,6 +81,8 @@ class Emitter {
     void emit_while(const parser::While &while_statement);
     void emit_call(const parser::Call &call);
 
+    auto get_variable(const std::string &name) -> Location *;
+
     void assign_memory(const std::vector<parser::Declaration> &declarations);
 
     void backup_register(Register reg);
@@ -92,6 +96,13 @@ class Emitter {
     void set_memory(const parser::Identifier &identifier);
     void set_jump_location(Instruction &instruction, uint64_t location);
 
+    void emit_line(const Instruction &instruction);
+    void emit_line_with_comment(const Instruction &instruction,
+                                const std::string &comment);
+    void push_comment(const Comment &comment);
+
+    bool is_pointer(const std::string &name);
+
     auto get_lines() const -> const std::vector<Line> & { return lines; }
 
   private:
@@ -100,12 +111,13 @@ class Emitter {
     std::vector<Line> lines{};
     std::vector<Error> errors{};
 
+    std::stack<Comment> comments{};
+
     std::string current_source = "";
 
     uint64_t stack_pointer = 0;
     std::stack<Register> registers{};
     std::unordered_map<Variable, Location> variables{};
-    std::unordered_map<Variable, uint64_t> inouts{};
 };
 
 } // namespace emitter
