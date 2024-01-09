@@ -573,16 +573,26 @@ void Emitter::set_register(Register reg, uint64_t value) {
     if (value == 0) {
         return;
     }
-    lines.push_back(Line{Inc{reg}});
-    uint64_t acc = 1;
-    while (2 * acc <= value) {
-        lines.push_back(Line{Shl{reg}});
-        acc *= 2;
+
+    auto value_copy = value;
+    unsigned msb_position = 0;
+
+    while (value_copy >>= 1) {
+        msb_position++;
     }
 
-    while (acc < value) {
+    uint64_t mask = 1llu << msb_position;
+
+    while (mask > 1) {
+        if (value & mask) {
+            lines.push_back(Line{Inc{reg}});
+        }
+        lines.push_back(Line{Shl{reg}});
+        mask >>= 1;
+    }
+
+    if (value & mask) {
         lines.push_back(Line{Inc{reg}});
-        acc++;
     }
 }
 
