@@ -14,10 +14,27 @@ struct Identifier {
     // but this is not enforced by the type system here
     Token name;
     std::optional<Token> index;
+
+    auto get_str() const -> std::string const {
+        auto result = name.lexeme;
+        if (index) {
+            result += "[";
+            result += index->lexeme;
+            result += "]";
+        }
+        return result;
+    }
 };
 
 using Num = Token;
 using Value = std::variant<Num, Identifier>;
+
+inline auto get_str(const Value &value) -> std::string {
+    if (std::holds_alternative<Num>(value)) {
+        return std::get<Num>(value).lexeme;
+    }
+    return std::get<Identifier>(value).get_str();
+}
 
 struct BinaryExpression {
     Value lhs;

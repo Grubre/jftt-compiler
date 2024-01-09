@@ -37,11 +37,10 @@ void Emitter::emit_procedure(const parser::Procedure &procedure) {
     assign_memory(procedure.context.declarations);
 
     // Set the return address
-    lines.push_back(Line{Get{Register::H},
-                         std::format("procedure {}", procedure.signature())});
-    lines.push_back(Line{Inc{Register::H}, "setting the return address"});
-    lines.push_back(Line{Inc{Register::H}});
-    lines.push_back(Line{Get{Register::H}});
+    emit_line_with_comment(Inc{Register::H}, std::format("procedure {}", procedure.signature()));
+    emit_line(Inc{Register::H});
+    emit_line(Get{Register::H});
+
     set_memory(return_address);
 
     // TODO: Handle pointers
@@ -50,10 +49,10 @@ void Emitter::emit_procedure(const parser::Procedure &procedure) {
     }
 
     set_mar(return_address);
-    lines.push_back(Line{Load{Register::B}});
-    lines.push_back(
-        Line{Jumpr{Register::A},
-             std::format("return from procedure {}", procedure.signature())});
+    emit_line(Load{Register::B});
+    emit_line_with_comment(
+        Jumpr{Register::A},
+        std::format("return from procedure {}", procedure.signature()));
 }
 
 auto Emitter::get_variable(const std::string &name) -> Location * {
@@ -73,10 +72,6 @@ bool Emitter::is_pointer(const std::string &name) {
     return var->is_pointer;
 }
 
-void Emitter::emit_comment(const Comment &comment) {
-    // lines.push_back(Line{comment});
-}
-
 void Emitter::set_mar(uint64_t value) { set_register(Register::B, value); }
 
 /// Sets the value of register B (B <- id)
@@ -91,16 +86,16 @@ void Emitter::set_mar(const parser::Identifier &identifier) {
         // TODO: Handle indexing by variable
         switch (identifier.index->token_type) {
         case Pidentifier: {
-            lines.push_back(Line{Put{Register::F}, " <- backup A (1)"});
+            emit_line_with_comment(Get{Register::F}, " <- backup A (1)");
             const auto &variable = get_variable(identifier.index->lexeme);
             // NOTE: Can potentially break if variable is a pointer (?)
             set_mar(variable->address);
-            lines.push_back(Line{Load{Register::B}});
+            emit_line(Load{Register::B});
             set_register(Register::C, location.address);
-            lines.push_back(Line{Add{Register::C}});
-            lines.push_back(Line{Put{Register::B}});
+            emit_line(Add{Register::C});
+            emit_line(Put{Register::B});
 
-            lines.push_back(Line{Get{Register::F}, " <- backup A (2)"});
+            emit_line_with_comment(Get{Register::F}, " <- backup A (2)");
 
             indexed = true;
         } break;
@@ -123,10 +118,10 @@ void Emitter::set_mar(const parser::Identifier &identifier) {
         set_register(Register::B, location.address + offset);
 
     if (is_pointer(identifier.name.lexeme)) {
-        lines.push_back(Line{Put{Register::G}, " <- pointer"});
-        lines.push_back(Line{Load{Register::B}});
-        lines.push_back(Line{Put{Register::B}});
-        lines.push_back(Line{Get{Register::G}});
+        emit_line_with_comment(Put{Register::G}, " <- pointer");
+        emit_line(Load{Register::B});
+        emit_line(Put{Register::B});
+        emit_line(Get{Register::G});
     }
 }
 
@@ -149,7 +144,7 @@ void Emitter::set_accumulator(const parser::Value &value) {
     } else {
         const auto identifier = std::get<parser::Identifier>(value);
         set_mar(identifier);
-        lines.push_back(Line{Load{Register::B}});
+        emit_line(Load{Register::B});
     }
 }
 
@@ -157,19 +152,19 @@ void Emitter::set_accumulator(const parser::Value &value) {
 /// (memory[address] <- A)
 void Emitter::set_memory(uint64_t address) {
     set_mar(address);
-    lines.push_back(Line{Store{Register::B}});
+    emit_line(Store{Register::B});
 }
 
 /// Store the value in the accumulator in the memory location specified by
 /// the identifier (memory[B] <- A)
 void Emitter::set_memory(const parser::Identifier &identifier) {
     set_mar(identifier);
-    lines.push_back(Line{Store{Register::B}});
+    emit_line(Store{Register::B});
 }
 
 void Emitter::emit_read(const parser::Identifier &identifier) {
-    emit_comment(Comment{"Read into " + identifier.name.lexeme});
-    lines.push_back(Line{Read{}});
+    push_comment(Comment{"READ " + identifier.name.lexeme});
+    emit_line(Read{});
 
     set_memory(identifier);
 }
@@ -177,18 +172,20 @@ void Emitter::emit_read(const parser::Identifier &identifier) {
 void Emitter::emit_write(const parser::Value &value) {
     if (std::holds_alternative<parser::Num>(value)) {
         const auto number = std::get<parser::Num>(value);
-        emit_comment(Comment{"Write " + number.lexeme});
+        push_comment(Comment{"WRITE " + number.lexeme});
         set_accumulator(value);
     } else {
         const auto identifier = std::get<parser::Identifier>(value);
-        emit_comment(Comment{"Write " + identifier.name.lexeme});
+        push_comment(Comment{"WRITE " + identifier.name.lexeme});
         set_mar(identifier);
-        lines.push_back(Line{Load{Register::B}});
+        emit_line(Load{Register::B});
     }
-    lines.push_back(Line{Write{}});
+    emit_line(Write{});
 }
 
 void Emitter::emit_assignment(const parser::Assignment &assignment) {
+    const auto lhs_comment = assignment.identifier.get_str() + " = ";
+
     if (std::holds_alternative<parser::Value>(assignment.expression)) {
         const auto &value = std::get<parser::Value>(assignment.expression);
 
@@ -199,114 +196,68 @@ void Emitter::emit_assignment(const parser::Assignment &assignment) {
 
     auto check_regd_geq_zero = [&](uint64_t offset) {
         const auto jump_line = lines.size();
-        lines.push_back(Line{Get{Register::D}});
-        lines.push_back(
-            Line{Jzero{lines.size() + offset}, "Jump to end if reg D == 0"});
+        emit_line(Get{Register::D});
+        emit_line_with_comment(Jzero{lines.size() + offset},
+                               "Jump to end if reg D == 0");
         return jump_line;
     };
 
     const auto &binary =
         std::get<parser::BinaryExpression>(assignment.expression);
 
+    auto gen_comment = [&](const char op) {
+        push_comment(Comment{lhs_comment + get_str(binary.lhs) + " " + op +
+                                 " " + get_str(binary.rhs),
+                             indent_level1});
+    };
+
     switch (binary.op.token_type) {
     case TokenType::Plus: {
+        gen_comment('+');
         set_register(Register::C, binary.rhs);
         set_accumulator(binary.lhs);
-        lines.push_back(Line{Add{Register::C}});
+        emit_line(Add{Register::C});
     } break;
     case TokenType::Minus:
+        gen_comment('-');
         set_register(Register::C, binary.rhs);
         set_accumulator(binary.lhs);
-        lines.push_back(Line{Sub{Register::C}});
+        emit_line(Sub{Register::C});
         break;
     case TokenType::Star: {
+        gen_comment('*');
         // Register C <- a
         // Register D <- b
         // Register F <- acc
         set_register(Register::C, binary.lhs);
         set_register(Register::D, binary.rhs);
 
-        lines.push_back(Line{Rst{Register::F}}); // p
+        emit_line(Rst{Register::F});
 
         const auto cond_line = check_regd_geq_zero(12);
 
         // Check parity
-        lines.push_back(Line{Shr{Register::A}});
-        lines.push_back(Line{Shl{Register::A}});
-        lines.push_back(Line{Inc{Register::A}});
-        lines.push_back(Line{Sub{Register::D}});
+        emit_line(Shr{Register::A});
+        emit_line(Shl{Register::A});
+        emit_line(Inc{Register::A});
+        emit_line(Sub{Register::D});
         const auto if_false_jump = lines.size() + 4;
         // If not even, jump to endif
-        lines.push_back(Line{Jpos{if_false_jump}});
+        emit_line(Jpos{if_false_jump});
 
         // otherwise p += a
-        lines.push_back(Line{Get{Register::F}});
-        lines.push_back(Line{Add{Register::C}});
-        lines.push_back(Line{Put{Register::F}});
+        emit_line(Get{Register::F});
+        emit_line(Add{Register::C});
+        emit_line(Put{Register::F});
 
-        lines.push_back(Line{Shl{Register::C}});
-        lines.push_back(Line{Shr{Register::D}});
-        lines.push_back(Line{Jump{cond_line}});
+        emit_line(Shl{Register::C});
+        emit_line(Shr{Register::D});
+        emit_line(Jump{cond_line});
 
-        lines.push_back(Line{Get{Register::F}});
+        emit_line(Get{Register::F});
     } break;
     case TokenType::Slash: {
-        // Register C <- a
-        // Register D <- b
-        // Register F <- acc
-
-        set_register(Register::C, binary.lhs);
-        set_register(Register::D, binary.rhs);
-
-        lines.push_back(Line{Rst{Register::F}}); // p
-        lines.push_back(Line{Rst{Register::E}}); // tmp
-
-        const auto len = 21;
-        // test if b = 0
-        lines.push_back(Line{Get{Register::D}});
-        lines.push_back(
-            Line{Jzero{lines.size() + len}, "Jump to end if reg D == 0"});
-        // endif
-
-        // tmp := 1
-        lines.push_back(Line{Inc{Register::E}});
-
-        // while b <= a condition
-        lines.push_back(Line{Get{Register::D}});
-        lines.push_back(Line{Sub{Register::C}});
-        lines.push_back(Line{Jpos{lines.size() + 4}, "jump if a < b"});
-        // tmp <<= 1, b <<= 1
-        lines.push_back(Line{Shl{Register::E}});
-        lines.push_back(Line{Shl{Register::D}});
-        lines.push_back(Line{Jump{lines.size() - 5}});
-        // endwhile
-
-        // repeat
-        const auto repeat_until_entry = lines.size();
-        // if b <= a
-        lines.push_back(Line{Get{Register::D}});
-        lines.push_back(Line{Sub{Register::C}});
-        lines.push_back(Line{Jpos{lines.size() + 7}, "jump if a < b"});
-        // p+=tmp
-        lines.push_back(Line{Get{Register::F}});
-        lines.push_back(Line{Add{Register::E}});
-        lines.push_back(Line{Put{Register::F}});
-        // a -= b
-        lines.push_back(Line{Get{Register::C}});
-        lines.push_back(Line{Sub{Register::D}});
-        lines.push_back(Line{Put{Register::C}});
-        // endif
-
-        // b >>= 1, tmp >>= 1
-        lines.push_back(Line{Shr{Register::D}});
-        lines.push_back(Line{Shr{Register::E}});
-
-        lines.push_back(Line{Get{Register::E}});
-        lines.push_back(Line{Jpos{repeat_until_entry}, "jump if a < b"});
-
-        lines.push_back(Line{Get{Register::F}});
-    } break;
-    case TokenType::Percent: {
+        gen_comment('/');
         // Register C <- a
         // Register D <- b
         // Register F <- p
@@ -315,48 +266,106 @@ void Emitter::emit_assignment(const parser::Assignment &assignment) {
         set_register(Register::C, binary.lhs);
         set_register(Register::D, binary.rhs);
 
-        lines.push_back(Line{Rst{Register::F}, "p := 0"}); // p
+        emit_line(Rst{Register::F});
+        emit_line(Rst{Register::E});
 
         const auto len = 21;
         // test if b = 0
-        lines.push_back(Line{Get{Register::D}});
-        lines.push_back(
-            Line{Jzero{lines.size() + len}, "Jump to end if reg D == 0"});
+        emit_line(Get{Register::D});
+        emit_line_with_comment(Jzero{lines.size() + len},
+                               "Jump to end if reg D == 0");
+        // endif
+
+        // tmp := 1
+        emit_line(Inc{Register::E});
+
+        // while b <= a condition
+        emit_line(Get{Register::D});
+        emit_line(Sub{Register::C});
+        emit_line_with_comment(Jpos{lines.size() + 4}, "jump if a < b");
+        // tmp <<= 1, b <<= 1
+        emit_line(Shl{Register::E});
+        emit_line(Shl{Register::D});
+        emit_line(Jump{lines.size() - 5});
+        // endwhile
+
+        // repeat
+        const auto repeat_until_entry = lines.size();
+        // if b <= a
+        emit_line(Get{Register::D});
+        emit_line(Sub{Register::C});
+        emit_line_with_comment(Jpos{lines.size() + 7}, "jump if a < b");
+        // p+=tmp
+        emit_line(Get{Register::F});
+        emit_line(Add{Register::E});
+        emit_line(Put{Register::F});
+        // a -= b
+        emit_line(Get{Register::C});
+        emit_line(Sub{Register::D});
+        emit_line(Put{Register::C});
+        // endif
+
+        // b >>= 1, tmp >>= 1
+        emit_line(Shr{Register::D});
+        emit_line(Shr{Register::E});
+
+        emit_line(Get{Register::E});
+        emit_line_with_comment(Jpos{repeat_until_entry}, "jump if a < b");
+
+        emit_line(Get{Register::F});
+    } break;
+    case TokenType::Percent: {
+        gen_comment('%');
+        // Register C <- a
+        // Register D <- b
+        // Register F <- p
+        // Register E <- tmp
+
+        set_register(Register::C, binary.lhs);
+        set_register(Register::D, binary.rhs);
+
+        emit_line_with_comment(Rst{Register::F}, "p := 0");
+
+        const auto len = 21;
+        // test if b = 0
+        emit_line(Get{Register::D});
+        emit_line_with_comment(Jzero{lines.size() + len},
+                               "Jump to end if reg D == 0");
         // endif
 
         // tmp := b
-        lines.push_back(Line{Get{Register::D}, "tmp := b"});
-        lines.push_back(Line{Put{Register::E}});
+        emit_line_with_comment(Get{Register::D}, "tmp := b");
+        emit_line(Put{Register::E});
 
         // while b <= a condition
-        lines.push_back(Line{Get{Register::D}, "check b <= a"});
-        lines.push_back(Line{Sub{Register::C}});
-        lines.push_back(Line{Jpos{lines.size() + 3}, "jump if a < b"});
+        emit_line_with_comment(Get{Register::D}, "check b <= a");
+        emit_line(Sub{Register::C});
+        emit_line_with_comment(Jpos{lines.size() + 3}, "jump if a < b");
         // b <<= 1
-        lines.push_back(Line{Shl{Register::D}});
-        lines.push_back(Line{Jump{lines.size() - 4}});
+        emit_line(Shl{Register::D});
+        emit_line(Jump{lines.size() - 4});
         // endwhile
 
         // repeat
         const auto repeat_until_entry = lines.size();
         // b >>= 1
-        lines.push_back(Line{Shr{Register::D}, "b >>= 1"});
+        emit_line_with_comment(Shr{Register::D}, "b >>= 1");
         // if b <= a
-        lines.push_back(Line{Get{Register::D}, "Check b <= a"});
-        lines.push_back(Line{Sub{Register::C}});
-        lines.push_back(Line{Jpos{lines.size() + 4}, "jump if a < b"});
+        emit_line_with_comment(Get{Register::D}, "Check b <= a");
+        emit_line(Sub{Register::C});
+        emit_line_with_comment(Jpos{lines.size() + 4}, "jump if a < b");
         // a -= b
-        lines.push_back(Line{Get{Register::C}});
-        lines.push_back(Line{Sub{Register::D}});
-        lines.push_back(Line{Put{Register::C}});
+        emit_line(Get{Register::C});
+        emit_line(Sub{Register::D});
+        emit_line(Put{Register::C});
         // endif
 
         // while tmp <= a
-        lines.push_back(Line{Get{Register::E}, "Check tmp <= a"});
-        lines.push_back(Line{Sub{Register::C}});
-        lines.push_back(Line{Jzero{repeat_until_entry}, "jump if a < tmp"});
+        emit_line_with_comment(Get{Register::E}, "Check tmp <= a");
+        emit_line(Sub{Register::C});
+        emit_line_with_comment(Jzero{repeat_until_entry}, "jump if a < tmp");
 
-        lines.push_back(Line{Get{Register::C}});
+        emit_line(Get{Register::C});
     }
 
     break;
@@ -392,10 +401,10 @@ auto Emitter::emit_condition(const parser::Condition &condition,
             set_register(lhs, condition.lhs);
             set_register(rhs, condition.rhs);
         }
-        lines.push_back(Line{Sub{Register::C}});
+        emit_line(Sub{Register::C});
     };
 
-    emit_comment(Comment{"Condition:", indent_level2});
+    push_comment(Comment{"Condition:", indent_level2});
 
     switch (condition.op.token_type) {
     case TokenType::LessEquals:
@@ -486,11 +495,11 @@ void Emitter::emit_if(const parser::If &if_statement) {
     const auto [jumps_if_false, jumps_if_true] =
         emit_condition(if_statement.condition, comment);
 
-    emit_comment(Comment{"If statement"});
+    push_comment(Comment{"If statement"});
 
     const auto body_start = lines.size();
 
-    emit_comment(Comment{"Body:", indent_level2});
+    push_comment(Comment{"Body:", indent_level2});
     for (const auto &command : if_statement.commands) {
         emit_command(command);
     }
@@ -510,7 +519,7 @@ void Emitter::emit_if(const parser::If &if_statement) {
     }
 
     if (if_statement.else_commands.has_value()) {
-        emit_comment(Comment{"Else Body:", indent_level2});
+        push_comment(Comment{"Else Body:", indent_level2});
         for (const auto &command : if_statement.else_commands.value()) {
             emit_command(command);
         }
@@ -524,7 +533,7 @@ void Emitter::emit_if(const parser::If &if_statement) {
 }
 
 void Emitter::emit_repeat(const parser::Repeat &repeat) {
-    emit_comment(Comment{"Repeat statement"});
+    push_comment(Comment{"Repeat statement"});
 
     const auto body_start = lines.size();
 
@@ -550,7 +559,7 @@ void Emitter::emit_repeat(const parser::Repeat &repeat) {
 }
 
 void Emitter::emit_while(const parser::While &while_statement) {
-    emit_comment(Comment{"While statement"});
+    push_comment(Comment{"While statement"});
 
     // Emit the condition
     const std::string if_false_comment = "Jump to while end";
@@ -566,7 +575,7 @@ void Emitter::emit_while(const parser::While &while_statement) {
         emit_command(command);
     }
 
-    lines.push_back(Line{Jump{condition_start}, "Jump to condition"});
+    emit_line_with_comment(Jump{condition_start}, "Jump to condition");
 
     const auto body_end = lines.size();
 
@@ -582,7 +591,7 @@ void Emitter::emit_while(const parser::While &while_statement) {
 void Emitter::emit_call(const parser::Call &call) {
     const auto num_args = call.args.size();
 
-    emit_comment(Comment{"Call " + call.name.lexeme});
+    push_comment(Comment{"Call " + call.name.lexeme});
 
     if (!procedures.contains(call.name.lexeme)) {
         // TODO: Add better error handling using struct Error
@@ -635,18 +644,18 @@ void Emitter::emit_call(const parser::Call &call) {
 
         if (variables[{previous_source, call.args[i].lexeme}].is_pointer) {
             set_register(Register::B, variable_mem_location.address);
-            lines.push_back(Line{Load{Register::B}});
+            emit_line(Load{Register::B});
         } else {
             set_accumulator(variable_mem_location.address);
         }
 
-        lines.push_back(Line{Store{Register::G}});
-        lines.push_back(Line{Inc{Register::G}});
+        emit_line(Store{Register::G});
+        emit_line(Inc{Register::G});
     }
 
-    lines.push_back(Line{Strk{Register::H}, "Save return address"});
-    lines.push_back(Line{Jump{procedures[call.name.lexeme].entrypoint},
-                         "Jump to procedure " + call.name.lexeme});
+    emit_line_with_comment(Strk{Register::H}, "Save return address");
+    emit_line_with_comment(Jump{procedures[call.name.lexeme].entrypoint},
+                           "Jump to procedure " + call.name.lexeme);
 
     current_source = previous_source;
 }
@@ -655,8 +664,8 @@ void Emitter::set_register(Register reg, uint64_t value) {
     const auto register_str =
         reg == Register::B ? "MAR(reg B)" : "Reg " + to_string(reg);
 
-    lines.push_back(
-        Line{Rst{reg}, "\t" + register_str + " <- " + std::to_string(value)});
+    emit_line_with_comment(Rst{reg}, "\t" + register_str + " <- " +
+                                         std::to_string(value));
 
     if (value == 0) {
         return;
@@ -673,14 +682,14 @@ void Emitter::set_register(Register reg, uint64_t value) {
 
     while (mask > 1) {
         if (value & mask) {
-            lines.push_back(Line{Inc{reg}});
+            emit_line(Inc{reg});
         }
-        lines.push_back(Line{Shl{reg}});
+        emit_line(Shl{reg});
         mask >>= 1;
     }
 
     if (value & mask) {
-        lines.push_back(Line{Inc{reg}});
+        emit_line(Inc{reg});
     }
 }
 
@@ -695,17 +704,17 @@ void Emitter::set_register(Register reg, const parser::Value &value) {
     } else {
         const auto identifier = std::get<parser::Identifier>(value);
         set_mar(identifier);
-        lines.push_back(Line{Load{Register::B}});
-        lines.push_back(Line{Put{reg}});
+        emit_line(Load{Register::B});
+        emit_line(Put{reg});
     }
 }
 
 // First 8 memory cells are for register backups
 void Emitter::backup_register(Register reg) {
     const auto memory_offset = static_cast<uint64_t>(reg);
-    lines.push_back(Line{Load{reg}, "Backup register " + to_string(reg)});
+    emit_line_with_comment(Load{reg}, "Backup register " + to_string(reg));
     set_register(Register::B, memory_offset);
-    lines.push_back(Line{Store{Register::B}});
+    emit_line(Store{Register::B});
 }
 
 void Emitter::assign_memory(
@@ -754,7 +763,7 @@ void Emitter::emit() {
         emit_command(command);
     }
 
-    lines.push_back(Line{Halt{}, "Halt"});
+    emit_line_with_comment(Halt{}, "Halt");
 }
 
 void Emitter::emit_line(const Instruction &instruction) {
