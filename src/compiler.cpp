@@ -6,6 +6,7 @@
 #include "emitter.hpp"
 #include "error.hpp"
 #include "lexer.hpp"
+#include "mw.hpp"
 #include "parser.hpp"
 
 auto load_file(const std::string &filepath) -> std::string {
@@ -70,14 +71,22 @@ auto main(int argc, char **argv) -> int {
 
     emitter.emit();
 
-    for (auto &line : emitter.get_lines()) {
-        const auto instruction = line.instruction;
-        const auto comment = line.comment;
+    auto inputs = std::deque<uint64_t>{0, 1};
 
-        std::cout << to_string(instruction);
-        if (!comment.empty())
-            std::cout << "\t\t#" << comment;
-        std::cout << std::endl;
+    const auto output = run_machine(emitter.get_lines(), inputs);
+    //
+    // for (auto &line : emitter.get_lines()) {
+    //     const auto instruction = line.instruction;
+    //     const auto comment = line.comment;
+    //
+    //     std::cout << to_string(instruction);
+    //     if (!comment.empty())
+    //         std::cout << "\t\t#" << comment;
+    //     std::cout << std::endl;
+    // }
+
+    for (auto o : output.outputs) {
+        std::cout << o << std::endl;
     }
 
     return 0;
