@@ -18,10 +18,37 @@
 
 #include "emitter.hpp"
 #include "mw.hpp"
+#include <iostream>
 #include <stack>
 
+auto ReadHandlerStdin::get_next_input() -> uint64_t {
+    uint64_t input;
+    std::cout << "? ";
+    std::cin >> input;
+    return input;
+}
+
+auto ReadHandlerDeque::get_next_input() -> uint64_t {
+    uint64_t input = input_values.front();
+    input_values.pop_front();
+    return input;
+}
+
+void WriteHandlerStdout::handle_output(uint64_t output) {
+    std::cout << "> " << output << std::endl;
+}
+
+void WriteHandlerVector::handle_output(uint64_t output) {
+    outputs.push_back(output);
+}
+
+auto WriteHandlerVector::get_outputs() -> const std::vector<uint64_t> & {
+    return outputs;
+}
+
 ProgramState run_machine(const std::vector<emitter::Line> &lines,
-                         std::deque<uint64_t> input_values) {
+                         ReadHandler *read_handler,
+                         WriteHandler *write_handler) {
     std::map<long long, long long> pam;
 
     std::vector<uint64_t> outputs;
@@ -44,16 +71,12 @@ ProgramState run_machine(const std::vector<emitter::Line> &lines,
     {
         // std::cout << to_string(lines[lr].instruction) << std::endl;
         std::visit(overloaded{[&](const emitter::Read &) {
-                                  std::cout << "popping "
-                                            << input_values.front()
-                                            << std::endl;
-                                  r[0] = input_values.front();
-                                  input_values.pop_front();
+                                  r[0] = read_handler->get_next_input();
                                   io += 100;
                                   lr++;
                               },
                               [&](const emitter::Write &) {
-                                  outputs.push_back(r[0]);
+                                  write_handler->handle_output(r[0]);
                                   io += 100;
                                   lr++;
                               },
@@ -147,7 +170,7 @@ ProgramState run_machine(const std::vector<emitter::Line> &lines,
                    lines[lr].instruction);
 
         if (lr < 0 || lr >= (int)lines.size()) {
-            return ProgramState{outputs, r, pam, true};
+            return ProgramState{r, pam, true};
             // cerr << cRed << "Błąd: Wywołanie nieistniejącej instrukcji nr "
             // << lr << "." << cReset << endl;
             // exit(-1);
@@ -161,5 +184,5 @@ ProgramState run_machine(const std::vector<emitter::Line> &lines,
         //     std::cout << "p[" << p.first << "] = " << p.second << std::endl;
     }
 
-    return ProgramState{outputs, r, pam, false};
+    return ProgramState{r, pam, false};
 }

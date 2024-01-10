@@ -2,6 +2,7 @@
 #include "mw.hpp"
 #include "tests_shared.hpp"
 #include <array>
+#include <memory>
 
 struct TestParams {
     std::string filename;
@@ -19,7 +20,7 @@ TEST_CASE("Official tests") {
         TestParams{"/example7.imp", {1, 0, 2}, {31001, 40900, 2222012}},
     };
 
-    for (auto &[filename, inputs, outputs] : test_params) {
+    for (auto &[filename, inputs, expected_outputs] : test_params) {
         SUBCASE(("Test file: " + filename).c_str()) {
             const auto filecontent =
                 read_file(std::string(TESTS_DIR) + filename);
@@ -47,11 +48,17 @@ TEST_CASE("Official tests") {
 
             const auto lines = emitter.get_lines();
 
-            auto program_state = run_machine(lines, inputs);
+            auto read_handler = std::make_unique<ReadHandlerDeque>(inputs);
+            auto write_handler = std::make_unique<WriteHandlerVector>();
 
-            CHECK(program_state.outputs.size() == outputs.size());
+            auto program_state =
+                run_machine(lines, read_handler.get(), write_handler.get());
+
+            const auto outputs = write_handler->get_outputs();
+
+            CHECK(outputs.size() == expected_outputs.size());
             for (auto i = 0; i < outputs.size(); i++)
-                CHECK(program_state.outputs[i] == outputs[i]);
+                CHECK(outputs[i] == expected_outputs[i]);
         }
     }
 }

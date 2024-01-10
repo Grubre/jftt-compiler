@@ -15,6 +15,7 @@ auto load_file(const std::string &filepath) -> std::string {
     if (!file) {
         std::cerr << "Error: File " << std::quoted(filepath) << " not found."
                   << std::endl;
+        exit(1);
     }
 
     std::stringstream buffer;
@@ -22,14 +23,34 @@ auto load_file(const std::string &filepath) -> std::string {
     return buffer.str();
 }
 
-auto main(int argc, char **argv) -> int {
-    if (argc != 2) {
-        std::cout << "Usage: " + std::string{argv[0]} + " <input_file>"
+struct CmdlineArgs {
+    std::string input_file;
+    std::optional<std::string> output_file;
+};
+
+auto parse_cmdline_args(int argc, char **argv) -> CmdlineArgs {
+    if (argc < 2) {
+        std::cerr << "Usage: " + std::string{argv[0]} +
+                         " <input_file> [output_file]"
                   << std::endl;
-        return 1;
+        exit(1);
     }
 
-    const auto filepath = std::string(argv[1]);
+    const auto input_file = std::string(argv[1]);
+
+    std::optional<std::string> output_file;
+
+    if (argc == 3) {
+        output_file = std::string(argv[2]);
+    }
+
+    return {input_file, output_file};
+}
+
+auto main(int argc, char **argv) -> int {
+    const auto args = parse_cmdline_args(argc, argv);
+
+    const auto filepath = std::string(args.input_file);
 
     const auto source = load_file(filepath);
 
@@ -71,23 +92,25 @@ auto main(int argc, char **argv) -> int {
 
     emitter.emit();
 
-    auto inputs = std::deque<uint64_t>{0, 1};
+    if (args.output_file) {
+        std::ofstream output(*args.output_file);
+        for (auto &line : emitter.get_lines()) {
+            const auto instruction = line.instruction;
+            const auto comment = line.comment;
 
-    const auto output = run_machine(emitter.get_lines(), inputs);
-    //
-    // for (auto &line : emitter.get_lines()) {
-    //     const auto instruction = line.instruction;
-    //     const auto comment = line.comment;
-    //
-    //     std::cout << to_string(instruction);
-    //     if (!comment.empty())
-    //         std::cout << "\t\t#" << comment;
-    //     std::cout << std::endl;
-    // }
-
-    for (auto o : output.outputs) {
-        std::cout << o << std::endl;
+            output << to_string(instruction);
+            if (!comment.empty())
+                output << "\t\t#" << comment;
+            output << std::endl;
+        }
+        return 0;
     }
+
+    auto read_handler = std::make_unique<ReadHandlerStdin>();
+    auto write_handler = std::make_unique<WriteHandlerStdout>();
+
+    const auto state = run_machine(emitter.get_lines(), read_handler.get(),
+                                    write_handler.get());
 
     return 0;
 }
