@@ -1,4 +1,5 @@
 #include "parser.hpp"
+#include <format>
 #include <iostream>
 #include <optional>
 
@@ -266,7 +267,14 @@ auto Parser::parse_value() -> std::optional<Value> {
         return *identifier;
     }
 
-    // TODO: Handle error
+    errors.push_back(Error{
+        .source = error_source,
+        .message =
+            std::format("Expected a number or identifier, instead found '{}'",
+                        peek()->lexeme),
+        .line = peek()->line,
+        .column = peek()->column});
+
     return std::nullopt;
 }
 
@@ -274,7 +282,6 @@ auto Parser::parse_command() -> std::optional<Command> {
     const auto next = peek();
 
     if (!next) {
-        // TODO: Handle error in a better way
         errors.push_back(
             Error{.source = error_source, .message = "Unexpected end of file"});
 
@@ -304,7 +311,7 @@ auto Parser::parse_command() -> std::optional<Command> {
 
         errors.push_back(
             Error{.source = error_source,
-                  .message = "Expected ':=' or a '(<args>)' after identifier " +
+                  .message = "Expected ':=' or '(<args>)' after identifier " +
                              next->lexeme,
                   .line = next->line,
                   .column = next->column});

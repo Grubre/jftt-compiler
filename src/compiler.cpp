@@ -79,10 +79,10 @@ auto main(int argc, char **argv) -> int {
     auto program = parser.parse_program();
 
     if (program) {
-        // std::cout << "Program parsed successfully!" << std::endl;
     } else {
-        std::cout << "Parsing failed due to errors:\n";
-        for (auto &error : parser.get_errors()) {
+        const auto errors = parser.get_errors();
+        std::cout << "Found " << errors.size() << " errors during parsing\n";
+        for (auto &error : errors) {
             display_error(error);
         }
         return 1;
@@ -110,7 +110,7 @@ auto main(int argc, char **argv) -> int {
     auto write_handler = std::make_unique<WriteHandlerStdout>();
 
     const auto state = run_machine(emitter.get_lines(), read_handler.get(),
-                                    write_handler.get());
+                                   write_handler.get());
 
     return 0;
 }

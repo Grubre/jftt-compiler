@@ -16,8 +16,14 @@ TEST_CASE("Official tests") {
         TestParams{"/example2.imp", {0, 1}, {46368, 28657}},
         TestParams{"/example3.imp", {1}, {121393}},
         TestParams{"/example4.imp", {20, 9}, {167960}},
+        TestParams{"/example5.imp",
+                   {1234567890, 1234567890987654321, 987654321},
+                   {674106858}},
+        TestParams{"/example6.imp", {20}, {2432902008176640000, 6765}},
         TestParams{"/example7.imp", {0, 0, 0}, {31000, 40900, 2222010}},
         TestParams{"/example7.imp", {1, 0, 2}, {31001, 40900, 2222012}},
+        TestParams{"/example9.imp", {20, 9}, {167960}},
+        TestParams{"/binary.imp", {5}, {1, 0, 1}},
     };
 
     for (auto &[filename, inputs, expected_outputs] : test_params) {
