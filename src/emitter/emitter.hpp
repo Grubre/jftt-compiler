@@ -85,7 +85,7 @@ class Emitter {
     void emit_while(const parser::While &while_statement);
     void emit_call(const parser::Call &call);
 
-    auto get_variable(const std::string &name) -> Location &;
+    auto get_variable(const Token &variable) -> Location *;
 
     void assign_memory(const std::vector<parser::Declaration> &declarations);
 
@@ -107,9 +107,10 @@ class Emitter {
     void push_comment(const Comment &comment);
     void push_error(const std::string &message, unsigned line, unsigned column);
 
-    bool is_pointer(const std::string &name);
+    bool is_pointer(const Token &variable);
 
     auto get_lines() const -> const std::vector<Line> & { return lines; }
+    auto get_errors() const -> const std::vector<Error> & { return errors; }
 
   private:
     parser::Program program;

@@ -9,9 +9,6 @@
 namespace parser {
 
 struct Identifier {
-    // TODO: The name field can only be an PIdentifier
-    // The index field can only be a Num or PIdentifier
-    // but this is not enforced by the type system here
     Token name;
     std::optional<Token> index;
 
@@ -80,7 +77,6 @@ struct If;
 struct Repeat;
 struct While;
 
-// NOTE: Possibly need to use pointer for While
 using Command = std::variant<Assignment, Read, Write, While, Call, If, Repeat>;
 
 struct While {

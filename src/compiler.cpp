@@ -81,7 +81,6 @@ auto main(int argc, char **argv) -> int {
     if (program) {
     } else {
         const auto errors = parser.get_errors();
-        std::cout << "Found " << errors.size() << " errors during parsing\n";
         for (auto &error : errors) {
             display_error(error);
         }
@@ -91,6 +90,13 @@ auto main(int argc, char **argv) -> int {
     auto emitter = emitter::Emitter(std::move(*program));
 
     emitter.emit();
+
+    if (emitter.get_errors().size() > 0) {
+        for (auto &error : emitter.get_errors()) {
+            display_error(error);
+        }
+        return 1;
+    }
 
     if (args.output_file) {
         std::ofstream output(*args.output_file);

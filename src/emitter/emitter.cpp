@@ -11,10 +11,6 @@ const auto error_source = "emitter";
 
 /// Before calling the procedure, register H must be set to the return address
 void Emitter::emit_procedure(const parser::Procedure &procedure) {
-    // TODO: Add error checking e.g
-    // - check if procedure name is unique
-    // - check if declarations and arguments are unique
-
     current_source = procedure.name.lexeme;
 
     const auto entrypoint = lines.size();
@@ -56,32 +52,40 @@ void Emitter::emit_procedure(const parser::Procedure &procedure) {
                 indent_level_middle});
 }
 
-auto Emitter::get_variable(const std::string &name) -> Location & {
-    if (!variables.contains({current_source, name})) {
-        push_error("Unknown variable " + name, 0, 0);
+auto Emitter::get_variable(const Token &variable) -> Location * {
+    if (!variables.contains({current_source, variable.lexeme})) {
+        push_error("Unknown variable " + variable.lexeme, variable.line,
+                   variable.column);
+        return nullptr;
     }
-    return variables[{current_source, name}];
+    return &variables.at({current_source, variable.lexeme});
 }
 
-bool Emitter::is_pointer(const std::string &name) {
-    const auto var = get_variable(name);
+bool Emitter::is_pointer(const Token &variable) {
+    const auto var = get_variable(variable);
+    if (!var) {
+        return false;
+    }
 
-    return var.is_pointer;
+    return var->is_pointer;
 }
 
 void Emitter::set_mar(uint64_t value) { set_register(Register::B, value); }
 
 /// Sets the value of register B (B <- id)
 void Emitter::set_mar(const parser::Identifier &identifier) {
-    const auto location = get_variable(identifier.name.lexeme);
+    const auto location = get_variable(identifier.name);
+    if (!location) {
+        return;
+    }
 
-    if (is_pointer(identifier.name.lexeme)) {
+    if (is_pointer(identifier.name)) {
         handle_pointer(identifier);
         return;
     }
 
     if (!identifier.index.has_value()) {
-        set_register(Register::B, location.address);
+        set_register(Register::B, location->address);
         return;
     }
 
@@ -89,16 +93,19 @@ void Emitter::set_mar(const parser::Identifier &identifier) {
     case Pidentifier: {
         emit_line_with_comment(Put{Register::F},
                                Comment{" <- backup A (1)", indent_level_sub});
-        const auto &variable = get_variable(identifier.index->lexeme);
+        const auto &variable = get_variable(*identifier.index);
+        if (!variable) {
+            return;
+        }
         push_comment(Comment{"Indexing by " + identifier.index->lexeme,
                              indent_level_sub});
-        set_mar(variable.address);
-        if (is_pointer(identifier.index->lexeme)) {
+        set_mar(variable->address);
+        if (is_pointer(*identifier.index)) {
             emit_line(Load{Register::B});
             emit_line(Put{Register::B});
         }
         emit_line(Load{Register::B});
-        set_register(Register::E, location.address);
+        set_register(Register::E, location->address);
         emit_line(Add{Register::E});
         emit_line(Put{Register::B});
 
@@ -107,26 +114,29 @@ void Emitter::set_mar(const parser::Identifier &identifier) {
     } break;
     case Num: {
         const auto offset = std::stoull(identifier.index->lexeme);
-        if (offset > location.size) {
+        if (offset > location->size) {
             push_error(std::format("Index {}[{}] outside bounds",
                                    identifier.name.lexeme,
                                    identifier.index->lexeme),
-                       0, 0);
+                       identifier.index->line, identifier.index->column);
         }
-        set_register(Register::B, location.address + offset);
+        set_register(Register::B, location->address + offset);
     } break;
     default:
         push_error(std::format("An array can only be indexed by a number or "
                                "pidentifier, tried indexing by {}.",
                                identifier.index->lexeme),
-                   0, 0);
+                   identifier.index->line, identifier.index->column);
         break;
     }
 }
 
 void Emitter::handle_pointer(const parser::Identifier &identifier) {
-    const auto location = get_variable(identifier.name.lexeme);
-    set_register(Register::B, location.address);
+    const auto location = get_variable(identifier.name);
+    if (!location) {
+        return;
+    }
+    set_register(Register::B, location->address);
     emit_line_with_comment(Put{Register::G},
                            Comment{" <- pointer", indent_level_sub});
     emit_line(Load{Register::B});
@@ -139,15 +149,17 @@ void Emitter::handle_pointer(const parser::Identifier &identifier) {
     switch (identifier.index->token_type) {
     case Num: {
         const auto offset = std::stoull(identifier.index->lexeme);
-        // TODO: Check if this does not break any operations
         set_register(Register::F, offset);
         emit_line(Add{Register::F});
     } break;
     case Pidentifier: {
-        const auto &variable = get_variable(identifier.index->lexeme);
+        const auto &variable = get_variable(*identifier.index);
+        if (!variable) {
+            return;
+        }
         emit_line(Put{Register::H});
-        set_register(Register::F, variable.address);
-        if (is_pointer(identifier.index->lexeme)) {
+        set_register(Register::F, variable->address);
+        if (is_pointer(*identifier.index)) {
             emit_line(Load{Register::F});
             emit_line(Put{Register::F});
         }
@@ -158,7 +170,7 @@ void Emitter::handle_pointer(const parser::Identifier &identifier) {
         push_error(std::format("An array can only be indexed by a number or "
                                "pidentifier, tried indexing by {}.",
                                identifier.index->lexeme),
-                   0, 0);
+                   identifier.index->line, identifier.index->column);
         break;
     }
 
@@ -437,7 +449,8 @@ void Emitter::emit_assignment(const parser::Assignment &assignment) {
 
     break;
     default:
-        push_error("Operator " + binary.op.lexeme + " not implemented", 0, 0);
+        push_error("Operator " + binary.op.lexeme + " not implemented",
+                   binary.op.line, binary.op.column);
     }
 
     set_memory(assignment.identifier);
@@ -536,8 +549,8 @@ auto Emitter::emit_condition(const parser::Condition &condition,
         jump_if_false(Jump{0}, comment_when_false + " if ==");
         break;
     default:
-        push_error("Operator " + condition.op.lexeme + " not implemented", 0,
-                   0);
+        push_error("Operator " + condition.op.lexeme + " not implemented",
+                   condition.op.line, condition.op.column);
     }
 
     return {jumps_if_false, jumps_if_true};
@@ -663,7 +676,8 @@ void Emitter::emit_call(const parser::Call &call) {
     push_comment(Comment{"Call " + call.name.lexeme});
 
     if (!procedures.contains(call.name.lexeme)) {
-        push_error("Procedure " + call.name.lexeme + " not found", 0, 0);
+        push_error("Procedure " + call.name.lexeme + " not found",
+                   call.name.line, call.name.column);
     }
 
     if (num_args != procedures[call.name.lexeme].procedure->args.size()) {
@@ -672,7 +686,7 @@ void Emitter::emit_call(const parser::Call &call) {
                 std::to_string(
                     procedures[call.name.lexeme].procedure->args.size()) +
                 " arguments but got " + std::to_string(num_args),
-            0, 0);
+            call.name.line, call.name.column);
     }
 
     const auto previous_source = current_source;
@@ -688,27 +702,34 @@ void Emitter::emit_call(const parser::Call &call) {
     for (auto i = 0u; i < num_args; i++) {
         // Check if variable exists
         if (!variables.contains({previous_source, call.args[i].lexeme})) {
-            push_error("Variable " + call.args[i].lexeme + " not found", 0, 0);
+            push_error("Variable " + call.args[i].lexeme + " not found",
+                       call.name.line, call.name.column);
         }
 
         const auto variable_mem_location =
-            variables[{previous_source, call.args[i].lexeme}];
+            variables.at({previous_source, call.args[i].lexeme});
 
         if (!variable_mem_location.is_pointer &&
             variable_mem_location.size == 1 && procedure->args[i].is_array) {
-            push_error(std::format("Procedure {} expected {} to be an array.",
-                                   procedure->signature(), call.name.lexeme),
-                       0, 0);
+            push_error(std::format("Procedure {} expected argument {} to be an "
+                                   "array, but {} is not.",
+                                   procedure->signature(),
+                                   procedure->args[i].identifier.lexeme,
+                                   call.args[i].lexeme),
+                       call.args[i].line, call.args[i].column);
         }
 
         if (variable_mem_location.size > 1 && !procedure->args[i].is_array) {
-            push_error(std::format("Procedure {} expected {} to be an be a "
-                                   "variable but found an array.",
-                                   procedure->signature(), call.name.lexeme),
-                       0, 0);
+            push_error(
+                std::format("Procedure {} expected argument {} to be an be a "
+                            "variable but found an {} which is an array.",
+                            procedure->signature(),
+                            procedure->args[i].identifier.lexeme,
+                            call.args[i].lexeme),
+                call.args[i].line, call.args[i].column);
         }
 
-        if (variables[{previous_source, call.args[i].lexeme}].is_pointer) {
+        if (variables.at({previous_source, call.args[i].lexeme}).is_pointer) {
             set_register(Register::B, variable_mem_location.address);
             emit_line(Load{Register::B});
         } else {
