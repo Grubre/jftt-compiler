@@ -77,9 +77,9 @@ auto Parser::expect(TokenTypes... types) -> std::optional<Token> {
 
 auto Parser::parse_declarations() -> std::optional<std::vector<Declaration>> {
     auto declarations = std::vector<Declaration>{};
-    std::optional<Token> array_size = std::nullopt;
 
     while (match_next(TokenType::Pidentifier)) {
+        std::optional<Token> array_size = std::nullopt;
         const auto identifier = chop();
 
         if (match_next(TokenType::Lbracket)) {

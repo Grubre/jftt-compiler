@@ -27,6 +27,10 @@ template <> struct hash<emitter::Variable> {
 
 namespace emitter {
 
+constexpr auto indent_level_main = 0;
+constexpr auto indent_level_middle = 4;
+constexpr auto indent_level_sub = 8;
+
 struct MemoryLocation {
     uint64_t address;
     uint64_t size;
@@ -81,7 +85,7 @@ class Emitter {
     void emit_while(const parser::While &while_statement);
     void emit_call(const parser::Call &call);
 
-    auto get_variable(const std::string &name) -> Location *;
+    auto get_variable(const std::string &name) -> Location &;
 
     void assign_memory(const std::vector<parser::Declaration> &declarations);
 
@@ -92,13 +96,14 @@ class Emitter {
     void set_accumulator(uint64_t value);
     void set_mar(uint64_t value);
     void set_mar(const parser::Identifier &identifier);
+    void handle_pointer(const parser::Identifier &identifier);
     void set_memory(uint64_t value);
     void set_memory(const parser::Identifier &identifier);
     void set_jump_location(Instruction &instruction, uint64_t location);
 
     void emit_line(const Instruction &instruction);
     void emit_line_with_comment(const Instruction &instruction,
-                                const std::string &comment);
+                                const Comment &comment);
     void push_comment(const Comment &comment);
 
     bool is_pointer(const std::string &name);
@@ -111,7 +116,7 @@ class Emitter {
     std::vector<Line> lines{};
     std::vector<Error> errors{};
 
-    std::stack<Comment> comments{};
+    std::deque<Comment> comments{};
 
     std::string current_source = "";
 

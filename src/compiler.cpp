@@ -100,7 +100,7 @@ auto main(int argc, char **argv) -> int {
 
             output << to_string(instruction);
             if (!comment.empty())
-                output << "\t\t#" << comment;
+                output << "\t\t\t\t\t# " << comment;
             output << std::endl;
         }
         return 0;

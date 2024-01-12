@@ -94,13 +94,13 @@ struct Halt {};
 
 struct Comment {
     std::string comment;
-    uint64_t indent = 10;
+    uint64_t indent = 8;
 
     auto get_str() const -> std::string {
         std::string str = "";
         for (auto i = 0u; i < indent; i++)
-            str += "=";
-        return str + " " + comment;
+            str += " ";
+        return str + comment;
     }
 };
 using Instruction =
