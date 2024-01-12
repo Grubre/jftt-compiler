@@ -7,6 +7,8 @@
 
 using namespace emitter;
 
+const auto error_source = "emitter";
+
 /// Before calling the procedure, register H must be set to the return address
 void Emitter::emit_procedure(const parser::Procedure &procedure) {
     // TODO: Add error checking e.g
@@ -56,8 +58,7 @@ void Emitter::emit_procedure(const parser::Procedure &procedure) {
 
 auto Emitter::get_variable(const std::string &name) -> Location & {
     if (!variables.contains({current_source, name})) {
-        std::cerr << "Unknown variable " << name << std::endl;
-        assert(false);
+        push_error("Unknown variable " + name, 0, 0);
     }
     return variables[{current_source, name}];
 }
@@ -72,7 +73,7 @@ void Emitter::set_mar(uint64_t value) { set_register(Register::B, value); }
 
 /// Sets the value of register B (B <- id)
 void Emitter::set_mar(const parser::Identifier &identifier) {
-    const auto location = variables[{current_source, identifier.name.lexeme}];
+    const auto location = get_variable(identifier.name.lexeme);
 
     if (is_pointer(identifier.name.lexeme)) {
         handle_pointer(identifier);
@@ -107,21 +108,24 @@ void Emitter::set_mar(const parser::Identifier &identifier) {
     case Num: {
         const auto offset = std::stoull(identifier.index->lexeme);
         if (offset > location.size) {
-            // TODO: Add better error;
-            std::cerr << "Index outside bounds\n";
-            assert(false);
+            push_error(std::format("Index {}[{}] outside bounds",
+                                   identifier.name.lexeme,
+                                   identifier.index->lexeme),
+                       0, 0);
         }
         set_register(Register::B, location.address + offset);
     } break;
     default:
-        std::cerr << "Invalid index token\n";
-        assert(false);
+        push_error(std::format("An array can only be indexed by a number or "
+                               "pidentifier, tried indexing by {}.",
+                               identifier.index->lexeme),
+                   0, 0);
         break;
     }
 }
 
 void Emitter::handle_pointer(const parser::Identifier &identifier) {
-    const auto location = variables[{current_source, identifier.name.lexeme}];
+    const auto location = get_variable(identifier.name.lexeme);
     set_register(Register::B, location.address);
     emit_line_with_comment(Put{Register::G},
                            Comment{" <- pointer", indent_level_sub});
@@ -151,8 +155,10 @@ void Emitter::handle_pointer(const parser::Identifier &identifier) {
         emit_line(Add{Register::H});
     } break;
     default:
-        std::cerr << "Invalid index token\n";
-        assert(false);
+        push_error(std::format("An array can only be indexed by a number or "
+                               "pidentifier, tried indexing by {}.",
+                               identifier.index->lexeme),
+                   0, 0);
         break;
     }
 
@@ -431,9 +437,7 @@ void Emitter::emit_assignment(const parser::Assignment &assignment) {
 
     break;
     default:
-        std::cerr << "Operator " << binary.op.lexeme << " not implemented"
-                  << std::endl;
-        assert(false);
+        push_error("Operator " + binary.op.lexeme + " not implemented", 0, 0);
     }
 
     set_memory(assignment.identifier);
@@ -532,9 +536,8 @@ auto Emitter::emit_condition(const parser::Condition &condition,
         jump_if_false(Jump{0}, comment_when_false + " if ==");
         break;
     default:
-        std::cerr << "Operator " << condition.op.lexeme << " not implemented"
-                  << std::endl;
-        assert(false);
+        push_error("Operator " + condition.op.lexeme + " not implemented", 0,
+                   0);
     }
 
     return {jumps_if_false, jumps_if_true};
@@ -660,17 +663,16 @@ void Emitter::emit_call(const parser::Call &call) {
     push_comment(Comment{"Call " + call.name.lexeme});
 
     if (!procedures.contains(call.name.lexeme)) {
-        // TODO: Add better error handling using struct Error
-        std::cerr << "Procedure " << call.name.lexeme << " not found"
-                  << std::endl;
-        assert(false);
+        push_error("Procedure " + call.name.lexeme + " not found", 0, 0);
     }
 
     if (num_args != procedures[call.name.lexeme].procedure->args.size()) {
-        std::cerr << "Procedure " << call.name.lexeme << " expected "
-                  << procedures[call.name.lexeme].procedure->args.size()
-                  << " arguments but got " << num_args << std::endl;
-        assert(false);
+        push_error(
+            "Procedure " + call.name.lexeme + " expected " +
+                std::to_string(
+                    procedures[call.name.lexeme].procedure->args.size()) +
+                " arguments but got " + std::to_string(num_args),
+            0, 0);
     }
 
     const auto previous_source = current_source;
@@ -686,9 +688,7 @@ void Emitter::emit_call(const parser::Call &call) {
     for (auto i = 0u; i < num_args; i++) {
         // Check if variable exists
         if (!variables.contains({previous_source, call.args[i].lexeme})) {
-            std::cerr << "Variable " << call.args[i].lexeme << " not found"
-                      << std::endl;
-            exit(1);
+            push_error("Variable " + call.args[i].lexeme + " not found", 0, 0);
         }
 
         const auto variable_mem_location =
@@ -696,17 +696,16 @@ void Emitter::emit_call(const parser::Call &call) {
 
         if (!variable_mem_location.is_pointer &&
             variable_mem_location.size == 1 && procedure->args[i].is_array) {
-            // TODO: Better errors
-            std::cerr << "Procedure " << call.name.lexeme
-                      << " expected an array but got a variable" << std::endl;
-            assert(false);
+            push_error(std::format("Procedure {} expected {} to be an array.",
+                                   procedure->signature(), call.name.lexeme),
+                       0, 0);
         }
 
         if (variable_mem_location.size > 1 && !procedure->args[i].is_array) {
-            // TODO: Better errors
-            std::cerr << "Procedure " << call.name.lexeme
-                      << " expected a variable but got an array" << std::endl;
-            assert(false);
+            push_error(std::format("Procedure {} expected {} to be an be a "
+                                   "variable but found an array.",
+                                   procedure->signature(), call.name.lexeme),
+                       0, 0);
         }
 
         if (variables[{previous_source, call.args[i].lexeme}].is_pointer) {
@@ -848,6 +847,16 @@ void Emitter::emit_line(const Instruction &instruction) {
 }
 void Emitter::push_comment(const Comment &comment) {
     comments.push_back(comment);
+}
+
+void Emitter::push_error(const std::string &message, unsigned line,
+                         unsigned column) {
+    errors.push_back(Error{
+        .source = error_source,
+        .message = message,
+        .line = line,
+        .column = column,
+    });
 }
 
 void Emitter::emit_line_with_comment(const Instruction &instruction,

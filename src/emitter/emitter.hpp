@@ -105,6 +105,7 @@ class Emitter {
     void emit_line_with_comment(const Instruction &instruction,
                                 const Comment &comment);
     void push_comment(const Comment &comment);
+    void push_error(const std::string &message, unsigned line, unsigned column);
 
     bool is_pointer(const std::string &name);
 

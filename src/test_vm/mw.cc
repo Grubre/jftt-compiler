@@ -69,7 +69,6 @@ ProgramState run_machine(const std::vector<emitter::Line> &lines,
     while (
         !std::holds_alternative<emitter::Halt>(lines[lr].instruction)) // HALT
     {
-        // std::cout << to_string(lines[lr].instruction) << std::endl;
         std::visit(overloaded{[&](const emitter::Read &) {
                                   r[0] = read_handler->get_next_input();
                                   io += 100;
