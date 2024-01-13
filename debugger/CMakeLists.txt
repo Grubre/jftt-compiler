@@ -12,10 +12,9 @@ if(NOT ftxui_POPULATED)
   add_subdirectory(${ftxui_SOURCE_DIR} ${ftxui_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-add_executable(debugger debugger.cpp)
+add_executable(debugger debugger.cpp debugger-wm.cpp)
 target_link_libraries(
   debugger
   PRIVATE ftxui::screen
   PRIVATE ftxui::dom
-  PRIVATE ftxui::component)
-
+  PRIVATE ftxui::component Emitter)
