@@ -21,12 +21,13 @@ auto parse_lines(const std::vector<std::string> &lines)
     -> std::vector<emitter::Instruction>;
 
 struct VirtualMachine {
-    VirtualMachine();
+    VirtualMachine(std::vector<emitter::Instruction> instructions);
     StateCode process_next_instruction();
 
     long long get_output() const;
     void set_input(long long input);
 
+    std::vector<emitter::Instruction> instructions;
     std::array<long long, 8> r;
     std::unordered_map<long long, long long> pam;
     long long lr;

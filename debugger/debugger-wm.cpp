@@ -88,7 +88,9 @@ auto parse_lines(const std::vector<std::string> &lines)
     return instructions;
 }
 
-VirtualMachine::VirtualMachine() {
+VirtualMachine::VirtualMachine(std::vector<emitter::Instruction> instructions)
+    : instructions(std::move(instructions)) {
+
     lr = 0;
     srand(time(NULL));
     for (int i = 0; i < 8; i++)

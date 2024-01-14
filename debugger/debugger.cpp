@@ -42,7 +42,7 @@ class LinesDisplayer : public ComponentBase {
 
         auto line_number = 1;
         for (const auto &line : lines) {
-            const auto breakpoint = line_number == break_point_line
+            const auto breakpoint = breakpoints.contains(line_number)
                                         ? std::wstring{L"●"}
                                         : std::wstring{L" "};
             const auto line_number_str = std::to_wstring(line_number);
@@ -61,10 +61,29 @@ class LinesDisplayer : public ComponentBase {
         return vbox(std::move(elements));
     }
 
+    void breakpoint(int line) {
+        if(breakpoints.find(line) != breakpoints.end()) {
+            breakpoints.erase(line);
+        } else {
+            breakpoints[line] = true;
+        }
+    }
+
+    virtual bool OnEvent(Event event) final {
+        if(event.is_mouse()) {
+            if(event.mouse().motion == Mouse::Released) {
+                breakpoint(event.mouse().y + 1);
+                return true;
+            }
+        }
+        return false;
+    }
+
   private:
+    Box breakpoint_box;
     std::vector<std::string> lines;
     int selected_line = 6;
-    int break_point_line = 3;
+    std::unordered_map<int,bool> breakpoints{};
 };
 
 class ScrollerBase : public ComponentBase {
@@ -92,7 +111,9 @@ class ScrollerBase : public ComponentBase {
         if (event.is_mouse() && box_.Contain(event.mouse().x, event.mouse().y))
             TakeFocus();
 
-        const auto coeff = 1;
+        ComponentBase::OnEvent(event);
+
+        constexpr auto coeff = 1;
 
         int selected_old = scrolled;
         if (event == Event::ArrowUp || event == Event::Character('k') ||
@@ -170,6 +191,8 @@ int main(int argc, char **argv) {
     const auto instructions = parse_lines(*lines);
 
     format(*lines);
+
+    auto vm = VirtualMachine(instructions);
 
     auto screen = ScreenInteractive::Fullscreen();
     const auto lines_component = Make<LinesDisplayer>(*lines);
