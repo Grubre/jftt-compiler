@@ -72,9 +72,13 @@ class LinesDisplay : public ComponentBase {
     void breakpoint(int line) {
         if (breakpoints.find(line) != breakpoints.end()) {
             breakpoints.erase(line);
-        } else {
+        } else if (line < lines.size()) {
             breakpoints[line] = true;
         }
+    }
+
+    auto get_breakpoints() const -> const std::unordered_map<int, bool> & {
+        return breakpoints;
     }
 
     auto is_breakpoint(int line) -> bool { return breakpoints.contains(line); }
@@ -125,7 +129,7 @@ class RegisterDisplay : public ComponentBase {
                 text(std::string{reg_name}) | size(WIDTH, EQUAL, 3) |
                     color(Color::Red),
                 text(reg_value_wstr) | color(value_color) | bold |
-                    size(WIDTH, EQUAL, 10),
+                    size(WIDTH, EQUAL, 20),
             });
             elements.push_back(reg);
             reg_name++;
@@ -259,9 +263,9 @@ class MemoryDisplay : public ComponentBase {
             const auto address_wstr = std::to_wstring(address);
             const auto value_wstr = std::to_wstring(value);
             const auto memory_element = hbox({
-                text(address_wstr) | size(WIDTH, EQUAL, 10) | color(Color::Red),
+                text(address_wstr) | size(WIDTH, EQUAL, 20) | color(Color::Red),
                 text(value_wstr) | color(value_text_color) |
-                    size(WIDTH, EQUAL, 10),
+                    size(WIDTH, EQUAL, 20),
             });
             elements.push_back(memory_element);
         }
@@ -344,11 +348,6 @@ int main(int argc, char **argv) {
                      separator(), memory_scroller->Render()});
     });
 
-    const auto state_ui = Renderer(memory_renderer, [&] {
-        return hbox({register_display->Render(), separator(),
-                     memory_renderer->Render()});
-    });
-
     // LINES DISPLAY
     const auto lines_display = Make<LinesDisplay>(*lines);
 
@@ -374,6 +373,24 @@ int main(int argc, char **argv) {
             separator(),
             line_scroller->Render(),
         });
+    });
+
+    const auto breakpoints_ui = Renderer([&] {
+        Elements elements;
+        elements.push_back(text(L"Breakpoints") | bold |
+                           size(WIDTH, EQUAL, 13) | color(title_text_color));
+        elements.push_back(separator());
+        for (const auto &[breakpoint, _] : lines_display->get_breakpoints()) {
+            elements.push_back(
+                text(std::wstring{L"●"} + std::to_wstring(breakpoint)));
+        }
+        return vbox(std::move(elements));
+    });
+
+    const auto state_ui = Renderer(memory_renderer, [&] {
+        return hbox({register_display->Render(), separator(),
+                     memory_renderer->Render(), separator(),
+                     breakpoints_ui->Render()});
     });
 
     // CONSOLE
@@ -467,8 +484,9 @@ int main(int argc, char **argv) {
 
     // MAIN RENDERER
     const auto main_renderer = Renderer(ui_container, [&] {
-        return hbox({line_scroller_ui->Render() | flex, separator(),
-                     vbox({state_ui->Render() | size(HEIGHT, LESS_THAN, 20),
+        return hbox({line_scroller_ui->Render() | xflex_grow, separator(),
+                     vbox({state_ui->Render() | size(HEIGHT, LESS_THAN, 20) |
+                               xflex_grow,
                            separator(), io_ui->Render() | yflex_grow}) |
                          xflex});
     });
@@ -506,12 +524,14 @@ int main(int argc, char **argv) {
             return true;
         }
         if (event == Event::Character('c')) {
+            if (lines_display->is_breakpoint(vm.lr))
+                step();
             StateCode code = StateCode::RUNNING;
             while (!lines_display->is_breakpoint(vm.lr) &&
                    (code == StateCode::RUNNING ||
                     code == StateCode::PENDING_OUTPUT)) {
                 code = vm.process_next_instruction();
-                if(code == StateCode::PENDING_OUTPUT)
+                if (code == StateCode::PENDING_OUTPUT)
                     push_output(vm.get_output());
             }
             handle_statecode(code);
