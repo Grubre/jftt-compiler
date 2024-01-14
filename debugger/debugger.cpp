@@ -30,6 +30,9 @@ static constexpr auto title_text_color_focused = Color::Green;
 auto number_len(int number) -> int {
     auto len = 0;
 
+    if (number == 0)
+        return 1;
+
     while (number > 0) {
         number /= 10;
         len++;
@@ -263,11 +266,18 @@ class MemoryDisplay : public ComponentBase {
     Element Render() final {
         Elements elements;
 
+        auto max_address_len = 0;
+        for (auto &[address, value] : *pam) {
+            max_address_len = std::max(max_address_len, number_len(address));
+        }
+
         for (auto &[address, value] : *pam) {
             const auto address_wstr = std::to_wstring(address);
             const auto value_wstr = std::to_wstring(value);
             const auto memory_element = hbox({
-                text(address_wstr) | color(Color::Red),
+                text(address_wstr) | color(Color::Red) | bold |
+                    size(WIDTH, EQUAL, max_address_len + 2),
+                text(value_wstr) | color(value_text_color),
             });
             elements.push_back(memory_element);
         }
@@ -395,7 +405,7 @@ int main(int argc, char **argv) {
     });
 
     // CONSOLE
-    std::deque<std::string> console_lines{"abc", "cde"};
+    std::deque<std::string> console_lines{};
     const auto console_history = Renderer([&] {
         Elements elements;
         for (auto &line : console_lines) {
