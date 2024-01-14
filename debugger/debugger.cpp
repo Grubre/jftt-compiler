@@ -116,7 +116,7 @@ class RegisterDisplay : public ComponentBase {
     Element Render() final {
         Elements elements;
 
-        elements.push_back(text(L"Registers") | bold | size(WIDTH, EQUAL, 13));
+        elements.push_back(text(L"Registers") | bold);
 
         elements.push_back(separator());
 
@@ -128,8 +128,7 @@ class RegisterDisplay : public ComponentBase {
             const auto reg = hbox({
                 text(std::string{reg_name}) | size(WIDTH, EQUAL, 3) |
                     color(Color::Red),
-                text(reg_value_wstr) | color(value_color) | bold |
-                    size(WIDTH, EQUAL, 20),
+                text(reg_value_wstr) | color(value_color) | bold,
             });
             elements.push_back(reg);
             reg_name++;
@@ -138,11 +137,12 @@ class RegisterDisplay : public ComponentBase {
         const auto lr_value_color =
             lr_changed ? updated_text_color : value_text_color;
         const auto lr_wstr = std::to_wstring(lr);
-        const auto lr_element = hbox({
-            text(std::string{"lr"}) | size(WIDTH, EQUAL, 3) | color(Color::Red),
-            text(lr_wstr) | color(lr_value_color) | bold |
-                size(WIDTH, EQUAL, 10),
-        });
+        const auto lr_element =
+            hbox({text(std::string{"lr"}) | size(WIDTH, EQUAL, 3) |
+                      color(Color::Red),
+                  text(lr_wstr) | color(lr_value_color) | bold
+
+            });
         elements.push_back(lr_element);
 
         return vbox(std::move(elements));
@@ -263,9 +263,7 @@ class MemoryDisplay : public ComponentBase {
             const auto address_wstr = std::to_wstring(address);
             const auto value_wstr = std::to_wstring(value);
             const auto memory_element = hbox({
-                text(address_wstr) | size(WIDTH, EQUAL, 20) | color(Color::Red),
-                text(value_wstr) | color(value_text_color) |
-                    size(WIDTH, EQUAL, 20),
+                text(address_wstr) | color(Color::Red),
             });
             elements.push_back(memory_element);
         }
@@ -343,9 +341,8 @@ int main(int argc, char **argv) {
         const auto title_color = memory_scroller->Focused()
                                      ? title_text_color_focused
                                      : title_text_color;
-        return vbox({text(L"Memory") | bold | size(WIDTH, EQUAL, 13) |
-                         color(title_color),
-                     separator(), memory_scroller->Render()});
+        return vbox({text(L"Memory") | bold | color(title_color), separator(),
+                     memory_scroller->Render()});
     });
 
     // LINES DISPLAY
@@ -368,8 +365,7 @@ int main(int argc, char **argv) {
                                      ? title_text_color_focused
                                      : title_text_color;
         return vbox({
-            text(L"Instructions") | bold | size(WIDTH, EQUAL, 13) |
-                color(title_color),
+            text(L"Instructions") | bold | color(title_color),
             separator(),
             line_scroller->Render(),
         });
@@ -378,19 +374,19 @@ int main(int argc, char **argv) {
     const auto breakpoints_ui = Renderer([&] {
         Elements elements;
         elements.push_back(text(L"Breakpoints") | bold |
-                           size(WIDTH, EQUAL, 13) | color(title_text_color));
+                           color(title_text_color));
         elements.push_back(separator());
         for (const auto &[breakpoint, _] : lines_display->get_breakpoints()) {
             elements.push_back(
-                text(std::wstring{L"●"} + std::to_wstring(breakpoint)));
+                text(std::wstring{L"● "} + std::to_wstring(breakpoint)));
         }
         return vbox(std::move(elements));
     });
 
     const auto state_ui = Renderer(memory_renderer, [&] {
-        return hbox({register_display->Render(), separator(),
-                     memory_renderer->Render(), separator(),
-                     breakpoints_ui->Render()});
+        return hbox({register_display->Render() | xflex, separator(),
+                     memory_renderer->Render() | xflex, separator(),
+                     breakpoints_ui->Render() | xflex});
     });
 
     // CONSOLE
@@ -398,7 +394,7 @@ int main(int argc, char **argv) {
     const auto console_history = Renderer([&] {
         Elements elements;
         for (auto &line : console_lines) {
-            elements.push_back(text(line) | size(WIDTH, EQUAL, 100));
+            elements.push_back(text(line));
         }
         return vbox(std::move(elements));
     });
@@ -429,8 +425,7 @@ int main(int argc, char **argv) {
                                      ? title_text_color_focused
                                      : title_text_color;
         return vbox({
-            text(L"Console") | bold | size(WIDTH, EQUAL, 13) |
-                color(title_color),
+            text(L"Console") | bold | color(title_color),
             separator(),
             vbox({
                 console_history->Render() | size(HEIGHT, LESS_THAN, 10),
@@ -444,7 +439,7 @@ int main(int argc, char **argv) {
     const auto output_lines_ui = Renderer([&] {
         Elements elements;
         for (auto &line : output) {
-            elements.push_back(text(line) | size(WIDTH, EQUAL, 100));
+            elements.push_back(text(line));
         }
         return vbox(std::move(elements));
     });
@@ -457,8 +452,7 @@ int main(int argc, char **argv) {
 
     const auto output_ui = Renderer([&] {
         return vbox({
-            text(L"Output") | bold | size(WIDTH, EQUAL, 13) |
-                color(title_text_color),
+            text(L"Output") | bold | color(title_text_color),
             separator(),
             output_lines_ui->Render() | size(HEIGHT, LESS_THAN, 10),
         });
@@ -466,9 +460,9 @@ int main(int argc, char **argv) {
 
     const auto io_ui = Renderer(console_ui, [&] {
         return hbox({
-            console_ui->Render(),
+            console_ui->Render() | xflex,
             separator(),
-            output_ui->Render(),
+            output_ui->Render() | xflex,
         });
     });
 
