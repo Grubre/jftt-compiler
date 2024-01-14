@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <vector>
 
@@ -40,7 +41,7 @@ class LinesDisplayer : public ComponentBase {
 
         const auto max_line_number_len = number_len(lines.size());
 
-        auto line_number = 1;
+        auto line_number = 0;
         for (const auto &line : lines) {
             const auto breakpoint = breakpoints.contains(line_number)
                                         ? std::wstring{L"●"}
@@ -62,17 +63,20 @@ class LinesDisplayer : public ComponentBase {
     }
 
     void breakpoint(int line) {
-        if(breakpoints.find(line) != breakpoints.end()) {
+        if (breakpoints.find(line) != breakpoints.end()) {
             breakpoints.erase(line);
         } else {
             breakpoints[line] = true;
         }
     }
 
+    void select_line(int line) { selected_line = line; }
+    void update_scroll(int scroll) { scrolled = scroll; }
+
     virtual bool OnEvent(Event event) final {
-        if(event.is_mouse()) {
-            if(event.mouse().motion == Mouse::Released) {
-                breakpoint(event.mouse().y + 1);
+        if (event.is_mouse()) {
+            if (event.mouse().motion == Mouse::Released) {
+                breakpoint(event.mouse().y + scrolled);
                 return true;
             }
         }
@@ -82,13 +86,81 @@ class LinesDisplayer : public ComponentBase {
   private:
     Box breakpoint_box;
     std::vector<std::string> lines;
-    int selected_line = 6;
-    std::unordered_map<int,bool> breakpoints{};
+    int selected_line = 0;
+    int scrolled = 0;
+    std::unordered_map<int, bool> breakpoints{};
+};
+
+class RegisterDisplay : public ComponentBase {
+  public:
+    static constexpr auto value_text_color = Color::GrayDark;
+    static constexpr auto updated_text_color = Color::Green;
+
+    RegisterDisplay(const std::array<long long, 8> &registers, long long lr) {
+        update_registers(registers, lr);
+        for (auto i = 0u; i < 8u; i++)
+            registers_changed[i] = false;
+        lr_changed = false;
+    }
+
+    Element Render() final {
+        Elements elements;
+
+        elements.push_back(text(L"Registers") | bold | size(WIDTH, EQUAL, 13));
+
+        elements.push_back(separator());
+
+        char reg_name = 'a';
+        for (auto i = 0u; i < 8u; i++) {
+            const auto reg_value_wstr = std::to_wstring(registers[i]);
+            const auto value_color =
+                registers_changed[i] ? updated_text_color : value_text_color;
+            const auto reg = hbox({
+                text(std::string{reg_name}) | size(WIDTH, EQUAL, 3) |
+                    color(Color::Red),
+                text(reg_value_wstr) | color(value_color) | bold |
+                    size(WIDTH, EQUAL, 10),
+            });
+            elements.push_back(reg);
+            reg_name++;
+        }
+
+        const auto lr_value_color =
+            lr_changed ? updated_text_color : value_text_color;
+        const auto lr_wstr = std::to_wstring(lr);
+        const auto lr_element = hbox({
+            text(std::string{"lr"}) | size(WIDTH, EQUAL, 3) | color(Color::Red),
+            text(lr_wstr) | color(lr_value_color) | bold |
+                size(WIDTH, EQUAL, 10),
+        });
+        elements.push_back(lr_element);
+
+        return vbox(std::move(elements));
+    }
+
+    void update_registers(const std::array<long long, 8> &registers,
+                          long long lr) {
+        for (auto i = 0u; i < 8u; i++) {
+            registers_changed[i] = registers[i] != this->registers[i];
+            this->registers[i] = registers[i];
+        }
+        lr_changed = lr != this->lr;
+        this->lr = lr;
+    }
+
+  private:
+    std::array<bool, 8> registers_changed{false};
+    std::array<long long, 8> registers;
+    bool lr_changed = false;
+    long long lr;
 };
 
 class ScrollerBase : public ComponentBase {
   public:
-    ScrollerBase(Component child) { Add(child); }
+    ScrollerBase(Component child, std::function<void(int)> update_child_scroll)
+        : update_child_scroll(update_child_scroll) {
+        Add(child);
+    }
 
   private:
     Element Render() final {
@@ -107,9 +179,11 @@ class ScrollerBase : public ComponentBase {
                vscroll_indicator | yframe | yflex | reflect(box_);
     }
 
-    virtual bool OnEvent(Event event) final {
-        if (event.is_mouse() && box_.Contain(event.mouse().x, event.mouse().y))
-            TakeFocus();
+    bool OnEvent(Event event) final {
+        if (!box_.Contain(event.mouse().x, event.mouse().y)) {
+            return false;
+        }
+        TakeFocus();
 
         ComponentBase::OnEvent(event);
 
@@ -135,19 +209,48 @@ class ScrollerBase : public ComponentBase {
 
         scrolled = std::max(box_.y_max / 2,
                             std::min(size_ - (box_.y_max / 2) - 2, scrolled));
+
+        update_child_scroll(scrolled - box_.y_max / 2);
+
         return selected_old != scrolled;
     }
 
     bool Focusable() const final { return true; }
+
+    std::function<void(int)> update_child_scroll;
 
     int scrolled = 0;
     int size_ = 0;
     Box box_;
 };
 
-Component Scroller(Component child) {
-    return Make<ScrollerBase>(std::move(child));
+Component Scroller(Component child,
+                   std::function<void(int)> update_child_scroll) {
+    return Make<ScrollerBase>(std::move(child), update_child_scroll);
 }
+
+class MemoryDisplay : public ComponentBase {
+  public:
+    MemoryDisplay(std::unordered_map<long long, long long> *pam) : pam(pam) {}
+    Element Render() final {
+        Elements elements;
+
+        for (auto &[address, value] : *pam) {
+            const auto address_wstr = std::to_wstring(address);
+            const auto value_wstr = std::to_wstring(value);
+            const auto memory_element = hbox({
+                text(address_wstr) | size(WIDTH, EQUAL, 10) | color(Color::Red),
+                text(value_wstr) | size(WIDTH, EQUAL, 10),
+            });
+            elements.push_back(memory_element);
+        }
+
+        return vbox(std::move(elements));
+    }
+
+  private:
+    std::unordered_map<long long, long long> *pam = nullptr;
+};
 
 auto read_files(const std::filesystem::path &filepath)
     -> std::optional<std::vector<std::string>> {
@@ -194,6 +297,10 @@ int main(int argc, char **argv) {
 
     auto vm = VirtualMachine(instructions);
 
+    const auto register_display = Make<RegisterDisplay>(vm.r, vm.lr);
+    const auto memory_display = Make<MemoryDisplay>(&vm.pam);
+    const auto memory_scroller = Scroller(memory_display, [](int) {});
+
     auto screen = ScreenInteractive::Fullscreen();
     const auto lines_component = Make<LinesDisplayer>(*lines);
     const auto line_renderer = Renderer(lines_component, [&] {
@@ -202,13 +309,26 @@ int main(int argc, char **argv) {
         });
     });
 
-    auto line_scroller = Scroller(line_renderer);
+    const auto memory_renderer = Renderer(memory_display, [&] {
+        return hbox({text(L"Memory") | bold | size(WIDTH, EQUAL, 13),
+                     separator(), memory_display->Render() | xflex});
+    });
 
+    const auto state_ui = Renderer([&] {
+        return hbox({register_display->Render() | xflex, separator(),
+                     memory_renderer->Render() | xflex});
+    });
+
+    const auto update_lines_renderer_scroll = [&](int scrolled) {
+        lines_component->update_scroll(scrolled);
+    };
+    const auto line_scroller =
+        Scroller(line_renderer, update_lines_renderer_scroll);
+
+    // make the line_scroller take exactly half of the screen
     const auto main_renderer = Renderer(line_scroller, [&] {
-        return hbox({
-            line_scroller->Render(),
-            separator(),
-        });
+        return hbox({line_scroller->Render() | xflex, separator(),
+                     vbox({state_ui->Render() | yflex, separator()}) | xflex});
     });
 
     const auto keyboard_event_handler = CatchEvent([&screen](Event event) {
