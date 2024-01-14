@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <filesystem>
+#include <map>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -29,7 +30,7 @@ struct VirtualMachine {
 
     std::vector<emitter::Instruction> instructions;
     std::array<long long, 8> r;
-    std::unordered_map<long long, long long> pam;
+    std::map<long long, long long> pam;
     long long lr;
     long long io;
 };

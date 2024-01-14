@@ -6,6 +6,7 @@
 
 #include "debugger-wm.hpp"
 #include "ftxui/component/component.hpp"
+#include "ftxui/component/component_options.hpp"
 #include "ftxui/component/mouse.hpp"
 #include "ftxui/dom/deprecated.hpp"
 #include "ftxui/dom/elements.hpp"
@@ -20,6 +21,12 @@
 
 using namespace ftxui;
 
+static constexpr auto value_text_color = Color::GrayDark;
+static constexpr auto updated_text_color = Color::Green;
+
+static constexpr auto title_text_color = Color::White;
+static constexpr auto title_text_color_focused = Color::Green;
+
 auto number_len(int number) -> int {
     auto len = 0;
 
@@ -31,9 +38,9 @@ auto number_len(int number) -> int {
     return len;
 }
 
-class LinesDisplayer : public ComponentBase {
+class LinesDisplay : public ComponentBase {
   public:
-    LinesDisplayer(std::vector<std::string> instruction)
+    LinesDisplay(std::vector<std::string> instruction)
         : lines(std::move(instruction)) {}
 
     Element Render() final {
@@ -93,9 +100,6 @@ class LinesDisplayer : public ComponentBase {
 
 class RegisterDisplay : public ComponentBase {
   public:
-    static constexpr auto value_text_color = Color::GrayDark;
-    static constexpr auto updated_text_color = Color::Green;
-
     RegisterDisplay(const std::array<long long, 8> &registers, long long lr) {
         update_registers(registers, lr);
         for (auto i = 0u; i < 8u; i++)
@@ -166,6 +170,8 @@ class ScrollerBase : public ComponentBase {
     Element Render() final {
         const auto focused = Focused() ? focus : ftxui::select;
 
+        const auto focused_str = Focused() ? "focused" : "";
+
         Element background = ComponentBase::Render();
         background->ComputeRequirement();
         size_ = background->requirement().min_y;
@@ -180,31 +186,35 @@ class ScrollerBase : public ComponentBase {
     }
 
     bool OnEvent(Event event) final {
-        if (!box_.Contain(event.mouse().x, event.mouse().y)) {
-            return false;
-        }
-        TakeFocus();
+        if (event.is_mouse() && box_.Contain(event.mouse().x, event.mouse().y))
+            TakeFocus();
 
+        if (!Focused())
+            return false;
         ComponentBase::OnEvent(event);
+
+        constexpr auto ctrlj = '\n';
+        constexpr auto ctrlk = '\v';
 
         constexpr auto coeff = 1;
 
         int selected_old = scrolled;
-        if (event == Event::ArrowUp || event == Event::Character('k') ||
+        if (event == Event::Character(ctrlk) || event == Event::ArrowUpCtrl ||
             (event.is_mouse() && event.mouse().button == Mouse::WheelUp)) {
             scrolled -= coeff;
         }
-        if ((event == Event::ArrowDown || event == Event::Character('j') ||
+        if ((event == Event::Character(ctrlj) ||
+             event == Event::ArrowDownCtrl ||
              (event.is_mouse() && event.mouse().button == Mouse::WheelDown))) {
             scrolled += coeff;
         }
-        if (event == Event::ArrowDownCtrl)
+        if (false)
             scrolled += (box_.y_max - box_.y_min) / 1;
-        if (event == Event::ArrowUpCtrl)
+        if (false)
             scrolled -= (box_.y_max - box_.y_min) / 1;
-        if (event == Event::Home)
+        if (false)
             scrolled = 0;
-        if (event == Event::End)
+        if (false)
             scrolled = size_;
 
         scrolled = std::max(box_.y_max / 2,
@@ -231,7 +241,7 @@ Component Scroller(Component child,
 
 class MemoryDisplay : public ComponentBase {
   public:
-    MemoryDisplay(std::unordered_map<long long, long long> *pam) : pam(pam) {}
+    MemoryDisplay(std::map<long long, long long> *pam) : pam(pam) {}
     Element Render() final {
         Elements elements;
 
@@ -240,7 +250,8 @@ class MemoryDisplay : public ComponentBase {
             const auto value_wstr = std::to_wstring(value);
             const auto memory_element = hbox({
                 text(address_wstr) | size(WIDTH, EQUAL, 10) | color(Color::Red),
-                text(value_wstr) | size(WIDTH, EQUAL, 10),
+                text(value_wstr) | color(value_text_color) |
+                    size(WIDTH, EQUAL, 10),
             });
             elements.push_back(memory_element);
         }
@@ -248,8 +259,17 @@ class MemoryDisplay : public ComponentBase {
         return vbox(std::move(elements));
     }
 
+    bool OnEvent(Event event) final {
+        if (event.is_mouse()) {
+            if (event.mouse().motion == Mouse::Released) {
+                return true;
+            }
+        }
+        return false;
+    }
+
   private:
-    std::unordered_map<long long, long long> *pam = nullptr;
+    std::map<long long, long long> *pam = nullptr;
 };
 
 auto read_files(const std::filesystem::path &filepath)
@@ -297,41 +317,104 @@ int main(int argc, char **argv) {
 
     auto vm = VirtualMachine(instructions);
 
+    for (auto i = 0u; i < 100u; i++) {
+        vm.pam[i] = i;
+    }
+
+    auto screen = ScreenInteractive::Fullscreen();
+
+    // REGISTERS AND MEMORY DISPLAY
     const auto register_display = Make<RegisterDisplay>(vm.r, vm.lr);
+
     const auto memory_display = Make<MemoryDisplay>(&vm.pam);
     const auto memory_scroller = Scroller(memory_display, [](int) {});
 
-    auto screen = ScreenInteractive::Fullscreen();
-    const auto lines_component = Make<LinesDisplayer>(*lines);
-    const auto line_renderer = Renderer(lines_component, [&] {
-        return hbox({
-            lines_component->Render(),
+    const auto memory_renderer = Renderer(memory_scroller, [&] {
+        const auto title_color = memory_scroller->Focused()
+                                     ? title_text_color_focused
+                                     : title_text_color;
+        return vbox({text(L"Memory") | bold | size(WIDTH, EQUAL, 13) |
+                         color(title_color),
+                     separator(), memory_scroller->Render()});
+    });
+
+    const auto state_ui = Renderer(memory_renderer, [&] {
+        return hbox({register_display->Render(), separator(),
+                     memory_renderer->Render()});
+    });
+
+    // CONSOLE
+    std::vector<std::string> console_lines;
+    const auto console_history = Renderer([&] {
+        Elements elements;
+        for (auto &line : console_lines) {
+            elements.push_back(text(line) | size(WIDTH, EQUAL, 100));
+        }
+        return vbox(std::move(elements));
+    });
+
+    std::string console_input_str;
+    const auto console_input = Input(&console_input_str, L"> ");
+
+    const auto console_container = Container::Vertical({
+        console_input,
+    });
+
+    auto console_ui = Renderer(console_container, [&] {
+        const auto title_color = console_container->Focused()
+                                     ? title_text_color_focused
+                                     : title_text_color;
+        return vbox({
+            text(L"Console") | bold | size(WIDTH, EQUAL, 13) |
+                color(title_color),
+            separator(),
+            vbox({
+                console_history->Render(),
+                separator(),
+                console_input->Render(),
+            }),
         });
     });
 
-    const auto memory_renderer = Renderer(memory_display, [&] {
-        return hbox({text(L"Memory") | bold | size(WIDTH, EQUAL, 13),
-                     separator(), memory_display->Render() | xflex});
+    const auto memory_and_console_container = Container::Vertical({
+        state_ui,
+        console_container,
     });
 
-    const auto state_ui = Renderer([&] {
-        return hbox({register_display->Render() | xflex, separator(),
-                     memory_renderer->Render() | xflex});
-    });
+    // LINES DISPLAY
+    const auto lines_display = Make<LinesDisplay>(*lines);
 
     const auto update_lines_renderer_scroll = [&](int scrolled) {
-        lines_component->update_scroll(scrolled);
+        lines_display->update_scroll(scrolled);
     };
-    const auto line_scroller =
-        Scroller(line_renderer, update_lines_renderer_scroll);
 
-    // make the line_scroller take exactly half of the screen
-    const auto main_renderer = Renderer(line_scroller, [&] {
-        return hbox({line_scroller->Render() | xflex, separator(),
-                     vbox({state_ui->Render() | yflex, separator()}) | xflex});
+    const auto line_scroller =
+        Scroller(lines_display, update_lines_renderer_scroll);
+
+    const auto line_scroller_ui = Renderer(line_scroller, [&] {
+        const auto title_color = line_scroller->Focused()
+                                     ? title_text_color_focused
+                                     : title_text_color;
+        return vbox({
+            text(L"Instructions") | bold | size(WIDTH, EQUAL, 13) |
+                color(title_color),
+            separator(),
+            line_scroller->Render(),
+        });
     });
 
-    const auto keyboard_event_handler = CatchEvent([&screen](Event event) {
+    const auto ui_container = Container::Horizontal({
+        line_scroller_ui,
+        memory_and_console_container,
+    });
+
+    const auto main_renderer = Renderer(ui_container, [&] {
+        return hbox(
+            {line_scroller_ui->Render(), separator(),
+             vbox({state_ui->Render(), separator(), console_ui->Render()})});
+    });
+
+    const auto keyboard_event_handler = CatchEvent([&](Event event) {
         if (event == Event::Character('q') or event == Event::Escape) {
             screen.Exit();
             return true;
