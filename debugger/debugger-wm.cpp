@@ -57,7 +57,7 @@ auto parse_lines(const std::vector<std::string> &lines)
             std::holds_alternative<emitter::Jzero>(*instruction)) {
             try {
                 const auto instruction_number = std::stoll(tokens[1]);
-                emitter::set_jump_location(*instruction, line_number);
+                emitter::set_jump_location(*instruction, instruction_number);
                 instructions.push_back(*instruction);
             } catch (const std::invalid_argument &) {
                 std::cerr << std::format(
@@ -90,7 +90,6 @@ auto parse_lines(const std::vector<std::string> &lines)
 
 VirtualMachine::VirtualMachine(std::vector<emitter::Instruction> instructions)
     : instructions(std::move(instructions)) {
-
     lr = 0;
     srand(time(NULL));
     for (int i = 0; i < 8; i++)

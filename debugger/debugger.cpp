@@ -77,6 +77,8 @@ class LinesDisplay : public ComponentBase {
         }
     }
 
+    auto is_breakpoint(int line) -> bool { return breakpoints.contains(line); }
+
     void select_line(int line) { selected_line = line; }
     void update_scroll(int scroll) { scrolled = scroll; }
 
@@ -217,15 +219,23 @@ class ScrollerBase : public ComponentBase {
         if (false)
             scrolled = size_;
 
-        scrolled = std::max(box_.y_max / 2,
-                            std::min(size_ - (box_.y_max / 2) - 2, scrolled));
+        scrolled = std::max(box_.y_max / 2 - 1,
+                            std::min(size_ - (box_.y_max / 2) - 1, scrolled));
 
-        update_child_scroll(scrolled - box_.y_max / 2);
+        update_child_scroll(scrolled - box_.y_max / 2 - 1);
 
         return selected_old != scrolled;
     }
 
     bool Focusable() const final { return true; }
+
+    void jump(int line) {
+        scrolled = line;
+        scrolled = std::max(box_.y_max / 2 - 1,
+                            std::min(size_ - (box_.y_max / 2) - 1, scrolled));
+
+        update_child_scroll(scrolled - box_.y_max / 2 - 1);
+    }
 
     std::function<void(int)> update_child_scroll;
 
@@ -317,10 +327,6 @@ int main(int argc, char **argv) {
 
     auto vm = VirtualMachine(instructions);
 
-    for (auto i = 0u; i < 100u; i++) {
-        vm.pam[i] = i;
-    }
-
     auto screen = ScreenInteractive::Fullscreen();
 
     // REGISTERS AND MEMORY DISPLAY
@@ -343,46 +349,13 @@ int main(int argc, char **argv) {
                      memory_renderer->Render()});
     });
 
-    // CONSOLE
-    std::vector<std::string> console_lines;
-    const auto console_history = Renderer([&] {
-        Elements elements;
-        for (auto &line : console_lines) {
-            elements.push_back(text(line) | size(WIDTH, EQUAL, 100));
-        }
-        return vbox(std::move(elements));
-    });
-
-    std::string console_input_str;
-    const auto console_input = Input(&console_input_str, L"> ");
-
-    const auto console_container = Container::Vertical({
-        console_input,
-    });
-
-    auto console_ui = Renderer(console_container, [&] {
-        const auto title_color = console_container->Focused()
-                                     ? title_text_color_focused
-                                     : title_text_color;
-        return vbox({
-            text(L"Console") | bold | size(WIDTH, EQUAL, 13) |
-                color(title_color),
-            separator(),
-            vbox({
-                console_history->Render(),
-                separator(),
-                console_input->Render(),
-            }),
-        });
-    });
-
-    const auto memory_and_console_container = Container::Vertical({
-        state_ui,
-        console_container,
-    });
-
     // LINES DISPLAY
     const auto lines_display = Make<LinesDisplay>(*lines);
+
+    const auto update_ui = [&] {
+        register_display->update_registers(vm.r, vm.lr);
+        lines_display->select_line(vm.lr);
+    };
 
     const auto update_lines_renderer_scroll = [&](int scrolled) {
         lines_display->update_scroll(scrolled);
@@ -403,20 +376,146 @@ int main(int argc, char **argv) {
         });
     });
 
+    // CONSOLE
+    std::deque<std::string> console_lines{"abc", "cde"};
+    const auto console_history = Renderer([&] {
+        Elements elements;
+        for (auto &line : console_lines) {
+            elements.push_back(text(line) | size(WIDTH, EQUAL, 100));
+        }
+        return vbox(std::move(elements));
+    });
+
+    std::string console_input_str;
+    bool expects_input = false;
+    auto console_input = Input(&console_input_str, L"> ");
+    console_input |= CatchEvent([&](Event event) {
+        if (event == Event::Character('\n')) {
+            if (console_input_str.empty())
+                return false;
+            if (expects_input) {
+                vm.set_input(std::stoll(console_input_str));
+                expects_input = false;
+                update_ui();
+            }
+            console_lines.push_back(console_input_str);
+            if (console_lines.size() > 10)
+                console_lines.pop_front();
+            console_input_str.clear();
+        }
+        bool ret = (ftxui::Event::Character('\n') == event);
+        return ret;
+    });
+
+    const auto console_ui = Renderer(console_input, [&] {
+        const auto title_color = console_input->Focused()
+                                     ? title_text_color_focused
+                                     : title_text_color;
+        return vbox({
+            text(L"Console") | bold | size(WIDTH, EQUAL, 13) |
+                color(title_color),
+            separator(),
+            vbox({
+                console_history->Render() | size(HEIGHT, LESS_THAN, 10),
+                console_input->Render(),
+            }),
+        });
+    });
+
+    // OUTPUT
+    std::deque<std::string> output{};
+    const auto output_lines_ui = Renderer([&] {
+        Elements elements;
+        for (auto &line : output) {
+            elements.push_back(text(line) | size(WIDTH, EQUAL, 100));
+        }
+        return vbox(std::move(elements));
+    });
+
+    const auto push_output = [&](long long value) {
+        output.push_back(std::to_string(value));
+        if (output.size() > 10)
+            output.pop_front();
+    };
+
+    const auto output_ui = Renderer([&] {
+        return vbox({
+            text(L"Output") | bold | size(WIDTH, EQUAL, 13) |
+                color(title_text_color),
+            separator(),
+            output_lines_ui->Render() | size(HEIGHT, LESS_THAN, 10),
+        });
+    });
+
+    const auto io_ui = Renderer(console_ui, [&] {
+        return hbox({
+            console_ui->Render(),
+            separator(),
+            output_ui->Render(),
+        });
+    });
+
+    const auto memory_and_console_container = Container::Vertical({
+        memory_renderer,
+        console_input,
+    });
+
     const auto ui_container = Container::Horizontal({
         line_scroller_ui,
         memory_and_console_container,
     });
 
+    // MAIN RENDERER
     const auto main_renderer = Renderer(ui_container, [&] {
-        return hbox(
-            {line_scroller_ui->Render(), separator(),
-             vbox({state_ui->Render(), separator(), console_ui->Render()})});
+        return hbox({line_scroller_ui->Render() | flex, separator(),
+                     vbox({state_ui->Render() | size(HEIGHT, LESS_THAN, 20),
+                           separator(), io_ui->Render() | yflex_grow}) |
+                         xflex});
     });
 
+    const auto handle_statecode = [&](StateCode state) {
+        switch (state) {
+        case StateCode::RUNNING:
+            break;
+        case StateCode::HALTED:
+            break;
+        case StateCode::PENDING_INPUT:
+            expects_input = true;
+            break;
+        case StateCode::PENDING_OUTPUT:
+            push_output(vm.get_output());
+            break;
+        case StateCode::ERROR:
+            break;
+        }
+    };
+
+    const auto step = [&] {
+        const auto state = vm.process_next_instruction();
+        handle_statecode(state);
+        update_ui();
+    };
+
     const auto keyboard_event_handler = CatchEvent([&](Event event) {
-        if (event == Event::Character('q') or event == Event::Escape) {
+        if (event == Event::Character('q')) {
             screen.Exit();
+            return true;
+        }
+        if (event == Event::Character('n')) {
+            step();
+            return true;
+        }
+        if (event == Event::Character('c')) {
+            StateCode code = StateCode::RUNNING;
+            while (!lines_display->is_breakpoint(vm.lr) &&
+                   (code == StateCode::RUNNING ||
+                    code == StateCode::PENDING_OUTPUT)) {
+                code = vm.process_next_instruction();
+                if(code == StateCode::PENDING_OUTPUT)
+                    push_output(vm.get_output());
+            }
+            handle_statecode(code);
+            update_ui();
             return true;
         }
         return false;
