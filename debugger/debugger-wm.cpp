@@ -6,12 +6,13 @@
 #include <iostream>
 #include <iterator>
 
-std::vector<std::string> split(std::string const &input) {
+auto split(std::string const &input) -> std::vector<std::string> {
     std::istringstream buffer(input);
     std::vector<std::string> ret((std::istream_iterator<std::string>(buffer)),
                                  std::istream_iterator<std::string>());
     return ret;
 }
+
 auto skip_whitespace(const std::string &str) -> std::size_t {
     auto i = 0u;
     while (i < str.size() && std::isspace(str[i]))

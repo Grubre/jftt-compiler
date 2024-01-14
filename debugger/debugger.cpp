@@ -172,6 +172,14 @@ class ScrollerBase : public ComponentBase {
         Add(child);
     }
 
+    void jump(int line) {
+        scrolled = line;
+        scrolled = std::max(box_.y_max / 2 - 1,
+                            std::min(size_ - (box_.y_max / 2) - 1, scrolled));
+
+        update_child_scroll(scrolled - box_.y_max / 2 - 1);
+    }
+
   private:
     Element Render() final {
         const auto focused = Focused() ? focus : ftxui::select;
@@ -192,12 +200,16 @@ class ScrollerBase : public ComponentBase {
     }
 
     bool OnEvent(Event event) final {
+        if (event.is_mouse() &&
+                box_.Contain(event.mouse().x, event.mouse().y) ||
+            !event.is_mouse())
+            ComponentBase::OnEvent(event);
+
         if (event.is_mouse() && box_.Contain(event.mouse().x, event.mouse().y))
             TakeFocus();
 
         if (!Focused())
             return false;
-        ComponentBase::OnEvent(event);
 
         constexpr auto ctrlj = '\n';
         constexpr auto ctrlk = '\v';
@@ -232,14 +244,6 @@ class ScrollerBase : public ComponentBase {
     }
 
     bool Focusable() const final { return true; }
-
-    void jump(int line) {
-        scrolled = line;
-        scrolled = std::max(box_.y_max / 2 - 1,
-                            std::min(size_ - (box_.y_max / 2) - 1, scrolled));
-
-        update_child_scroll(scrolled - box_.y_max / 2 - 1);
-    }
 
     std::function<void(int)> update_child_scroll;
 
@@ -348,11 +352,6 @@ int main(int argc, char **argv) {
     // LINES DISPLAY
     const auto lines_display = Make<LinesDisplay>(*lines);
 
-    const auto update_ui = [&] {
-        register_display->update_registers(vm.r, vm.lr);
-        lines_display->select_line(vm.lr);
-    };
-
     const auto update_lines_renderer_scroll = [&](int scrolled) {
         lines_display->update_scroll(scrolled);
     };
@@ -370,6 +369,12 @@ int main(int argc, char **argv) {
             line_scroller->Render(),
         });
     });
+
+    const auto update_ui = [&] {
+        register_display->update_registers(vm.r, vm.lr);
+        lines_display->select_line(vm.lr);
+        ((ScrollerBase *)line_scroller.get())->jump(vm.lr);
+    };
 
     const auto breakpoints_ui = Renderer([&] {
         Elements elements;
@@ -410,10 +415,22 @@ int main(int argc, char **argv) {
                 vm.set_input(std::stoll(console_input_str));
                 expects_input = false;
                 update_ui();
+                return false;
             }
             console_lines.push_back(console_input_str);
             if (console_lines.size() > 10)
                 console_lines.pop_front();
+
+            const auto command = split(console_input_str);
+            if (command[0] == "b") {
+                const auto line = std::stoi(command[1]);
+                lines_display->breakpoint(line);
+            }
+            if (command[0] == "j") {
+                const auto line = std::stoi(command[1]);
+                ((ScrollerBase *)line_scroller.get())->jump(line);
+            }
+
             console_input_str.clear();
         }
         bool ret = (ftxui::Event::Character('\n') == event);

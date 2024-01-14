@@ -21,6 +21,8 @@ enum class StateCode {
 auto parse_lines(const std::vector<std::string> &lines)
     -> std::vector<emitter::Instruction>;
 
+auto split(std::string const &input) -> std::vector<std::string>;
+
 struct VirtualMachine {
     VirtualMachine(std::vector<emitter::Instruction> instructions);
 
