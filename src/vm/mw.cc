@@ -34,21 +34,9 @@ auto ReadHandlerDeque::get_next_input() -> uint64_t {
     return input;
 }
 
-void WriteHandlerStdout::handle_output(uint64_t output) {
-    std::cout << "> " << output << std::endl;
-}
-
-void WriteHandlerVector::handle_output(uint64_t output) {
-    outputs.push_back(output);
-}
-
-auto WriteHandlerVector::get_outputs() -> const std::vector<uint64_t> & {
-    return outputs;
-}
-
-ProgramState run_machine(const std::vector<emitter::Line> &lines,
+ProgramState<long long> run_machine(const std::vector<emitter::Line> &lines,
                          ReadHandler *read_handler,
-                         WriteHandler *write_handler) {
+                         WriteHandler<uint64_t> *write_handler) {
     std::map<long long, long long> pam;
 
     std::vector<uint64_t> outputs;
@@ -169,7 +157,7 @@ ProgramState run_machine(const std::vector<emitter::Line> &lines,
                    lines[lr].instruction);
 
         if (lr < 0 || lr >= (int)lines.size()) {
-            return ProgramState{r, pam, true};
+            return ProgramState<long long>{r, pam, true};
             // cerr << cRed << "Błąd: Wywołanie nieistniejącej instrukcji nr "
             // << lr << "." << cReset << endl;
             // exit(-1);
@@ -183,5 +171,5 @@ ProgramState run_machine(const std::vector<emitter::Line> &lines,
         //     std::cout << "p[" << p.first << "] = " << p.second << std::endl;
     }
 
-    return ProgramState{r, pam, false};
+    return ProgramState<long long>{r, pam, false};
 }

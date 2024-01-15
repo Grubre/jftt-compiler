@@ -6,7 +6,7 @@
 #include "emitter.hpp"
 #include "error.hpp"
 #include "lexer.hpp"
-#include "mw.hpp"
+#include "mw-cln.hpp"
 #include "parser.hpp"
 
 auto load_file(const std::string &filepath) -> std::string {
@@ -113,7 +113,7 @@ auto main(int argc, char **argv) -> int {
     }
 
     auto read_handler = std::make_unique<ReadHandlerStdin>();
-    auto write_handler = std::make_unique<WriteHandlerStdout>();
+    auto write_handler = std::make_unique<WriteHandlerStdout<cln::cl_I>>();
 
     const auto state = run_machine(emitter.get_lines(), read_handler.get(),
                                    write_handler.get());

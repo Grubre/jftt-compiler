@@ -12,4 +12,4 @@ endfunction()
 
 create_test(lexer_test lexer_test.cpp Lexer)
 create_test(parser_test parser_test.cpp Lexer Parser)
-create_test(emitter_test emitter_test.cpp TestVM Lexer Parser Emitter)
+create_test(emitter_test emitter_test.cpp cln TestVM TestVMcln Lexer Parser Emitter)

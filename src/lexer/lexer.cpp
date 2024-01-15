@@ -76,7 +76,7 @@ auto Lexer::peek() -> std::optional<char> {
 void Lexer::trim_whitespace() {
     while (current_index < source.size()) {
         char c = source[current_index];
-        if (c == ' ' || c == '\t' || c == '\n') {
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
             current_index++;
             column_number++;
 
@@ -101,9 +101,13 @@ auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
     }
 
     char c = source[current_index];
-
+ 
     if (c == '#') {
-        chop_while([](char c) { return c != '\n'; });
+        chop_while([&](char c) {
+            if (c == '\n')
+                newline();
+            return c != '\n';
+        });
         return next_token();
     }
 
@@ -190,6 +194,7 @@ auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
         return make_token(TokenType::Comma, chop(1));
     }
 
+    chop(1);
     return tl::unexpected(Error{"Lexer",
                                 std::format("Unexpected character '{}'", c),
                                 line_number, column_number});

@@ -4,11 +4,13 @@
 #include <array>
 #include <cstdint>
 #include <emitter.hpp>
+#include <iostream>
 #include <map>
 
+template<typename T>
 struct ProgramState {
-    std::array<long long, 8> r;
-    std::map<long long, long long> pam;
+    std::array<T, 8> r;
+    std::map<long long, T> pam;
     bool error;
 };
 
@@ -33,26 +35,35 @@ class ReadHandlerDeque : public ReadHandler {
     std::deque<uint64_t> input_values;
 };
 
+template<typename T>
 class WriteHandler {
   public:
-    virtual void handle_output(uint64_t output) = 0;
+    virtual void handle_output(T output) = 0;
 };
 
-class WriteHandlerStdout : public WriteHandler {
+template<typename T>
+class WriteHandlerStdout : public WriteHandler<T> {
   public:
-    void handle_output(uint64_t output) override;
+    void handle_output(T output) override {
+        std::cout << "> " << output << std::endl;
+    }
 };
 
-class WriteHandlerVector : public WriteHandler {
+template<typename T>
+class WriteHandlerVector : public WriteHandler<T> {
   public:
-    void handle_output(uint64_t output) override;
+    void handle_output(T output) override {
+        outputs.push_back(output);
+    }
 
-    auto get_outputs() -> const std::vector<uint64_t> &;
+    auto get_outputs() -> const std::vector<T> & {
+        return outputs;
+    }
 
   private:
-    std::vector<uint64_t> outputs;
+    std::vector<T> outputs;
 };
 
-ProgramState run_machine(const std::vector<emitter::Line> &lines,
+ProgramState<long long> run_machine(const std::vector<emitter::Line> &lines,
                          ReadHandler *read_handler,
-                         WriteHandler *write_handler);
+                         WriteHandler<uint64_t> *write_handler);
