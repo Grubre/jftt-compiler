@@ -36,6 +36,7 @@ inline auto to_string(Register reg) -> std::string {
     case Register::H:
         return "h";
     }
+    assert(false);
 }
 
 inline auto from_string(const std::string &reg) -> std::optional<Register> {
@@ -267,4 +268,4 @@ struct Line {
     std::string comment{};
 };
 
-} // namespace emitter
+} // namespace instruction

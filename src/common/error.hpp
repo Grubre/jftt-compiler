@@ -8,7 +8,10 @@ struct Error {
     unsigned line;
     unsigned column;
 
+    bool is_warning = false;
+
     auto operator==(const Error &other) const -> bool;
 };
 
-auto display_error(const Error &error) -> void;
+// true if error, false if warning
+auto display_error(const Error &error) -> bool;

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <optional>
 
+#include "analyzer.hpp"
 #include "emitter.hpp"
 #include "error.hpp"
 #include "lexer.hpp"
@@ -65,8 +66,7 @@ auto main(int argc, char **argv) -> int {
             // std::cout << to_string(*token) << std::endl;
             tokens.push_back(*token);
         } else {
-            display_error(token.error());
-            error_occured = true;
+            error_occured = display_error(token.error());
         }
     }
 
@@ -80,11 +80,24 @@ auto main(int argc, char **argv) -> int {
 
     if (program) {
     } else {
+        bool is_error = false;
         const auto errors = parser.get_errors();
         for (auto &error : errors) {
-            display_error(error);
+            is_error = display_error(error);
         }
-        return 1;
+        if (is_error)
+            return 1;
+    }
+
+    auto analyzer = Analyzer(*program);
+
+    if (!analyzer.analyze()) {
+        bool is_error = false;
+        for (const auto &error : analyzer.get_errors()) {
+            is_error = display_error(error);
+        }
+        if (is_error)
+            return 1;
     }
 
     auto emitter = emitter::Emitter(std::move(*program));
@@ -92,10 +105,12 @@ auto main(int argc, char **argv) -> int {
     emitter.emit();
 
     if (emitter.get_errors().size() > 0) {
+        bool is_error = false;
         for (auto &error : emitter.get_errors()) {
-            display_error(error);
+            is_error = display_error(error);
         }
-        return 1;
+        if (is_error)
+            return 1;
     }
 
     if (args.output_file) {
