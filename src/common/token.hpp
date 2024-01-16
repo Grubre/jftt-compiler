@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <format>
 #include <string>
 enum TokenType {
     Pidentifier,
@@ -134,6 +135,13 @@ struct Token {
                line == other.line && column == other.column;
     }
 };
+
+inline auto to_string(const Token& token) -> std::string {
+    auto out = std::format("({}:{}, {})",
+            token.line, token.column, token.lexeme);
+
+    return out;
+}
 
 namespace std {
 template <> struct hash<Token> {

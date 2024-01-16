@@ -38,8 +38,9 @@ auto Lexer::newline() -> void {
     column_number = 1;
 }
 
-auto Lexer::make_token(TokenType token_type, std::string lexeme) -> Token {
-    return Token{token_type, lexeme, line_number, column_number};
+auto Lexer::make_token(TokenType token_type, std::string lexeme,
+                       unsigned int column) -> Token {
+    return Token{token_type, lexeme, line_number, column};
 }
 
 auto Lexer::chop(int count) -> std::string {
@@ -100,26 +101,24 @@ auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
         return std::nullopt;
     }
 
-    char c = source[current_index];
- 
+    const char c = source[current_index];
+
+    const auto first_char_column = column_number;
+
     if (c == '#') {
-        chop_while([&](char c) {
-            if (c == '\n')
-                newline();
-            return c != '\n';
-        });
+        chop_while([&](char c) { return c != '\n'; });
         return next_token();
     }
 
     if (is_numeric(c)) {
         auto lexeme = chop_while(is_numeric);
-        return make_token(TokenType::Num, lexeme);
+        return make_token(TokenType::Num, lexeme, first_char_column);
     }
 
     if (is_lowercase_alphabetic(c) || c == '_') {
         auto lexeme = chop_while(
             [](char c) { return is_lowercase_alphabetic(c) || c == '_'; });
-        return make_token(TokenType::Pidentifier, lexeme);
+        return make_token(TokenType::Pidentifier, lexeme, first_char_column);
     }
 
     if (is_uppercase_alphabetic(c)) {
@@ -127,7 +126,7 @@ auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
 
         auto keyword = keywords.find(lexeme);
         if (keyword != keywords.end()) {
-            return make_token(keyword->second, lexeme);
+            return make_token(keyword->second, lexeme, first_char_column);
         } else {
             return tl::unexpected(
                 Error{"Lexer", std::format("Unknown keyword '{}'", lexeme),
@@ -137,20 +136,21 @@ auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
 
     switch (c) {
     case '+':
-        return make_token(TokenType::Plus, chop(1));
+        return make_token(TokenType::Plus, chop(1), first_char_column);
     case '-':
-        return make_token(TokenType::Minus, chop(1));
+        return make_token(TokenType::Minus, chop(1), first_char_column);
     case '*':
-        return make_token(TokenType::Star, chop(1));
+        return make_token(TokenType::Star, chop(1), first_char_column);
     case '/':
-        return make_token(TokenType::Slash, chop(1));
+        return make_token(TokenType::Slash, chop(1), first_char_column);
     case '%':
-        return make_token(TokenType::Percent, chop(1));
+        return make_token(TokenType::Percent, chop(1), first_char_column);
     case '=':
-        return make_token(TokenType::Equals, chop(1));
+        return make_token(TokenType::Equals, chop(1), first_char_column);
     case '!':
         if (peek() == '=') {
-            return make_token(TokenType::BangEquals, chop(2));
+            return make_token(TokenType::BangEquals, chop(2),
+                              first_char_column);
         } else {
             return tl::unexpected(Error{
                 "Lexer",
@@ -160,27 +160,29 @@ auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
         }
     case '>':
         if (peek() == '=') {
-            return make_token(TokenType::GreaterEquals, chop(2));
+            return make_token(TokenType::GreaterEquals, chop(2),
+                              first_char_column);
         } else {
-            return make_token(TokenType::Greater, chop(1));
+            return make_token(TokenType::Greater, chop(1), first_char_column);
         }
     case '<':
         if (peek() == '=') {
-            return make_token(TokenType::LessEquals, chop(2));
+            return make_token(TokenType::LessEquals, chop(2),
+                              first_char_column);
         } else {
-            return make_token(TokenType::Less, chop(1));
+            return make_token(TokenType::Less, chop(1), first_char_column);
         }
     case '(':
-        return make_token(TokenType::Lparen, chop(1));
+        return make_token(TokenType::Lparen, chop(1), first_char_column);
     case ')':
-        return make_token(TokenType::Rparen, chop(1));
+        return make_token(TokenType::Rparen, chop(1), first_char_column);
     case '[':
-        return make_token(TokenType::Lbracket, chop(1));
+        return make_token(TokenType::Lbracket, chop(1), first_char_column);
     case ']':
-        return make_token(TokenType::Rbracket, chop(1));
+        return make_token(TokenType::Rbracket, chop(1), first_char_column);
     case ':':
         if (peek() == '=') {
-            return make_token(TokenType::Walrus, chop(2));
+            return make_token(TokenType::Walrus, chop(2), first_char_column);
         } else {
             return tl::unexpected(Error{
                 "Lexer",
@@ -189,9 +191,9 @@ auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
                 line_number, column_number});
         }
     case ';':
-        return make_token(TokenType::Semicolon, chop(1));
+        return make_token(TokenType::Semicolon, chop(1), first_char_column);
     case ',':
-        return make_token(TokenType::Comma, chop(1));
+        return make_token(TokenType::Comma, chop(1), first_char_column);
     }
 
     chop(1);

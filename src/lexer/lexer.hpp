@@ -64,7 +64,8 @@ class Lexer {
     auto peek() -> std::optional<char>;
     void trim_whitespace();
     void newline();
-    auto make_token(TokenType token_type, std::string lexeme) -> Token;
+    auto make_token(TokenType token_type, std::string lexeme,
+                    unsigned int column) -> Token;
 
   private:
     unsigned line_number;
