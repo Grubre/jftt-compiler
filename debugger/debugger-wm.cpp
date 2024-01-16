@@ -21,9 +21,9 @@ auto skip_whitespace(const std::string &str) -> std::size_t {
 }
 
 auto parse_lines(const std::vector<std::string> &lines)
-    -> std::vector<emitter::Instruction> {
+    -> std::vector<instruction::Instruction> {
     auto line_number = 1;
-    std::vector<emitter::Instruction> instructions{};
+    std::vector<instruction::Instruction> instructions{};
     for (const auto &line : lines) {
         const auto tokens = split(line);
         // skip empty lines
@@ -36,7 +36,7 @@ auto parse_lines(const std::vector<std::string> &lines)
             continue;
         }
 
-        auto instruction = emitter::mnemonic_from_string(tokens[0]);
+        auto instruction = instruction::mnemonic_from_string(tokens[0]);
 
         if (instruction == std::nullopt) {
             std::cerr << std::format("Error:{}: Invalid mnemonic '{}'",
@@ -46,19 +46,19 @@ auto parse_lines(const std::vector<std::string> &lines)
         }
 
         // No parameters passed to these instructions
-        if (std::holds_alternative<emitter::Read>(*instruction) ||
-            std::holds_alternative<emitter::Write>(*instruction) ||
-            std::holds_alternative<emitter::Halt>(*instruction)) {
+        if (std::holds_alternative<instruction::Read>(*instruction) ||
+            std::holds_alternative<instruction::Write>(*instruction) ||
+            std::holds_alternative<instruction::Halt>(*instruction)) {
             instructions.push_back(*instruction);
             continue;
         }
 
-        if (std::holds_alternative<emitter::Jump>(*instruction) ||
-            std::holds_alternative<emitter::Jpos>(*instruction) ||
-            std::holds_alternative<emitter::Jzero>(*instruction)) {
+        if (std::holds_alternative<instruction::Jump>(*instruction) ||
+            std::holds_alternative<instruction::Jpos>(*instruction) ||
+            std::holds_alternative<instruction::Jzero>(*instruction)) {
             try {
                 const auto instruction_number = std::stoll(tokens[1]);
-                emitter::set_jump_location(*instruction, instruction_number);
+                instruction::set_jump_location(*instruction, instruction_number);
                 instructions.push_back(*instruction);
             } catch (const std::invalid_argument &) {
                 std::cerr << std::format(
@@ -70,7 +70,7 @@ auto parse_lines(const std::vector<std::string> &lines)
             continue;
         }
 
-        const auto reg = emitter::from_string(tokens[1]);
+        const auto reg = instruction::from_string(tokens[1]);
 
         if (!reg) {
             std::cerr << std::format("Error:{}: Invalid register '{}'",
@@ -79,7 +79,7 @@ auto parse_lines(const std::vector<std::string> &lines)
             std::exit(EXIT_FAILURE);
         }
 
-        emitter::set_instruction_register(*instruction, *reg);
+        instruction::set_instruction_register(*instruction, *reg);
 
         instructions.push_back(*instruction);
 
@@ -89,7 +89,7 @@ auto parse_lines(const std::vector<std::string> &lines)
     return instructions;
 }
 
-VirtualMachine::VirtualMachine(std::vector<emitter::Instruction> instructions)
+VirtualMachine::VirtualMachine(std::vector<instruction::Instruction> instructions)
     : instructions(std::move(instructions)) {
     lr = 0;
     srand(time(NULL));
@@ -113,101 +113,101 @@ void VirtualMachine::set_input(long long input) {
 
 auto VirtualMachine::process_next_instruction() -> StateCode {
     auto state_code = StateCode::RUNNING;
-    std::visit(overloaded{[&](const emitter::Read &) {
+    std::visit(overloaded{[&](const instruction::Read &) {
                               state_code = StateCode::PENDING_INPUT;
                           },
-                          [&](const emitter::Write &) {
+                          [&](const instruction::Write &) {
                               state_code = StateCode::PENDING_OUTPUT;
                           },
-                          [&](const emitter::Load &load) {
+                          [&](const instruction::Load &load) {
                               r[0] = pam[r[(int)load.address]];
                               t += 50;
                               lr++;
                           },
-                          [&](const emitter::Store &store) {
+                          [&](const instruction::Store &store) {
                               pam[r[(int)store.address]] = r[0];
                               t += 50;
                               lr++;
                           },
-                          [&](const emitter::Add &add) {
+                          [&](const instruction::Add &add) {
                               r[0] += r[(int)add.address];
                               t += 5;
                               lr++;
                           },
-                          [&](const emitter::Sub &sub) {
+                          [&](const instruction::Sub &sub) {
                               r[0] -= r[0] >= r[(int)sub.address]
                                           ? r[(int)sub.address]
                                           : r[0];
                               t += 5;
                               lr++;
                           },
-                          [&](const emitter::Get &get) {
+                          [&](const instruction::Get &get) {
                               r[0] = r[(int)get.address];
                               t += 1;
                               lr++;
                           },
-                          [&](const emitter::Put &put) {
+                          [&](const instruction::Put &put) {
                               r[(int)put.address] = r[0];
                               t += 1;
                               lr++;
                           },
-                          [&](const emitter::Rst &rst) {
+                          [&](const instruction::Rst &rst) {
                               r[(int)rst.address] = 0;
                               t += 1;
                               lr++;
                           },
-                          [&](const emitter::Inc &inc) {
+                          [&](const instruction::Inc &inc) {
                               r[(int)inc.address]++;
                               t += 1;
                               lr++;
                           },
-                          [&](const emitter::Dec &dec) {
+                          [&](const instruction::Dec &dec) {
                               if (r[(int)dec.address] > 0)
                                   r[(int)dec.address]--;
                               t += 1;
                               lr++;
                           },
-                          [&](const emitter::Shl &shl) {
+                          [&](const instruction::Shl &shl) {
                               r[(int)shl.address] <<= 1;
                               t += 1;
                               lr++;
                           },
-                          [&](const emitter::Shr &shr) {
+                          [&](const instruction::Shr &shr) {
                               r[(int)shr.address] >>= 1;
                               t += 1;
                               lr++;
                           },
-                          [&](const emitter::Jump &jump) {
+                          [&](const instruction::Jump &jump) {
                               lr = jump.line;
                               t += 1;
                           },
-                          [&](const emitter::Jpos &jpos) {
+                          [&](const instruction::Jpos &jpos) {
                               if (r[0] > 0)
                                   lr = jpos.line;
                               else
                                   lr++;
                               t += 1;
                           },
-                          [&](const emitter::Jzero &jzero) {
+                          [&](const instruction::Jzero &jzero) {
                               if (r[0] == 0)
                                   lr = jzero.line;
                               else
                                   lr++;
                               t += 1;
                           },
-                          [&](const emitter::Strk &strk) {
+                          [&](const instruction::Strk &strk) {
                               r[(int)strk.reg] = lr;
                               t += 1;
                               lr++;
                           },
-                          [&](const emitter::Jumpr &jumpr) {
+                          [&](const instruction::Jumpr &jumpr) {
                               lr = r[(int)jumpr.reg];
                               t += 1;
                           },
-                          [&](const emitter::Halt &) {
+                          [&](const instruction::Halt &) {
                               state_code = StateCode::HALTED;
                           },
-                          [&](const emitter::Comment &comment) {}},
+                          [&](const instruction::Comment &comment) {}},
                instructions[lr]);
 
     if (lr < 0 || lr >= (int)instructions.size()) {

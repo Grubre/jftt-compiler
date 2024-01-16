@@ -17,4 +17,4 @@ target_link_libraries(
   debugger
   PRIVATE ftxui::screen
   PRIVATE ftxui::dom
-  PRIVATE ftxui::component Emitter)
+  PRIVATE ftxui::component Common)

@@ -2,6 +2,8 @@
 #include "mw.hpp"
 #include "mw-cln.hpp"
 #include "tests_shared.hpp"
+#include "lexer.hpp"
+#include "parser.hpp"
 #include <array>
 #include <memory>
 

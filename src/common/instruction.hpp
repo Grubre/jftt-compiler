@@ -13,7 +13,7 @@ template <class... Ts> struct overloaded : Ts... {
 };
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-namespace emitter {
+namespace instruction {
 
 enum class Register { A, B, C, D, E, F, G, H };
 

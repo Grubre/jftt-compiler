@@ -6,7 +6,7 @@
 #include <variant>
 #include <vector>
 
-namespace parser {
+namespace ast {
 
 struct Identifier {
     Token name;
@@ -99,5 +99,42 @@ struct Declaration {
     Token identifier;
     std::optional<Token> array_size;
 };
+
+struct Context {
+    std::vector<Declaration> declarations{};
+    std::vector<Command> commands{};
+};
+
+struct Arg {
+    Token identifier;
+    bool is_array;
+};
+
+struct Procedure {
+    Token name;
+    std::vector<Arg> args{};
+    Context context;
+
+    std::string signature() const {
+        std::string result = name.lexeme + "(";
+
+        for (const auto &arg : args) {
+            result += arg.identifier.lexeme + ", ";
+        }
+
+        if (!args.empty()) {
+            result.pop_back();
+            result.pop_back();
+        }
+
+        return result + ")";
+    }
+};
+
+struct Program {
+    std::vector<Procedure> procedures{};
+    Context main;
+};
+
 
 } // namespace parser

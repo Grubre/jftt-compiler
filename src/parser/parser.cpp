@@ -5,6 +5,8 @@
 
 namespace parser {
 
+using namespace ast;
+
 constexpr std::string error_source = "parser";
 
 auto Parser::chop() -> std::optional<Token> {
@@ -200,7 +202,7 @@ auto Parser::parse_read() -> std::optional<Command> {
         return std::nullopt;
     }
 
-    return Read{.identifier = *identifier};
+    return ast::Read{.identifier = *identifier};
 }
 
 auto Parser::parse_write() -> std::optional<Command> {
@@ -218,7 +220,7 @@ auto Parser::parse_write() -> std::optional<Command> {
         return std::nullopt;
     }
 
-    return Write{.value = *value};
+    return ast::Write{.value = *value};
 }
 
 auto Parser::parse_identifier() -> std::optional<Identifier> {
@@ -254,7 +256,7 @@ auto Parser::parse_value() -> std::optional<Value> {
             return std::nullopt;
         }
 
-        return Num{*num};
+        return ast::Num{*num};
     }
 
     if (match_next(TokenType::Pidentifier)) {
@@ -381,7 +383,7 @@ auto Parser::parse_program() -> std::optional<program_type> {
     return program;
 }
 
-auto Parser::parse_procedure() -> std::optional<Procedure> {
+auto Parser::parse_procedure() -> std::optional<ast::Procedure> {
     if (!expect(TokenType::Procedure)) {
         return std::nullopt;
     }
@@ -453,7 +455,7 @@ auto Parser::parse_procedure() -> std::optional<Procedure> {
         return std::nullopt;
     }
 
-    return Procedure{.name = *name,
+    return ast::Procedure{.name = *name,
                      .args = args,
                      .context = Context{.declarations = *declarations,
                                         .commands = commands}};
@@ -489,7 +491,7 @@ auto Parser::parse_while() -> std::optional<Command> {
         return std::nullopt;
     }
 
-    return While{.condition = *condition, .commands = commands};
+    return ast::While{.condition = *condition, .commands = commands};
 }
 
 auto Parser::parse_call() -> std::optional<Command> {
@@ -573,7 +575,7 @@ auto Parser::parse_if() -> std::optional<Command> {
         return std::nullopt;
     }
 
-    return If{.condition = *condition,
+    return ast::If{.condition = *condition,
               .commands = commands,
               .else_commands = else_commands};
 }
@@ -608,7 +610,7 @@ auto Parser::parse_repeat() -> std::optional<Command> {
         return std::nullopt;
     }
 
-    return Repeat{.commands = commands, .condition = *condition};
+    return ast::Repeat{.commands = commands, .condition = *condition};
 }
 
 } // namespace parser

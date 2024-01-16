@@ -6,11 +6,12 @@
 #include <string>
 
 using namespace emitter;
+using namespace instruction;
 
 const auto error_source = "emitter";
 
 /// Before calling the procedure, register H must be set to the return address
-void Emitter::emit_procedure(const parser::Procedure &procedure) {
+void Emitter::emit_procedure(const ast::Procedure &procedure) {
     current_source = procedure.name.lexeme;
 
     const auto entrypoint = lines.size();
@@ -73,7 +74,7 @@ bool Emitter::is_pointer(const Token &variable) {
 void Emitter::set_mar(uint64_t value) { set_register(Register::B, value); }
 
 /// Sets the value of register B (B <- id)
-void Emitter::set_mar(const parser::Identifier &identifier) {
+void Emitter::set_mar(const ast::Identifier &identifier) {
     const auto location = get_variable(identifier.name);
     if (!location) {
         return;
@@ -131,7 +132,7 @@ void Emitter::set_mar(const parser::Identifier &identifier) {
     }
 }
 
-void Emitter::handle_pointer(const parser::Identifier &identifier) {
+void Emitter::handle_pointer(const ast::Identifier &identifier) {
     const auto location = get_variable(identifier.name);
     if (!location) {
         return;
@@ -190,12 +191,12 @@ void Emitter::set_accumulator(uint64_t value) {
     set_register(Register::A, value);
 }
 
-void Emitter::set_accumulator(const parser::Value &value) {
-    if (std::holds_alternative<parser::Num>(value)) {
-        const auto number = std::get<parser::Num>(value);
+void Emitter::set_accumulator(const ast::Value &value) {
+    if (std::holds_alternative<ast::Num>(value)) {
+        const auto number = std::get<ast::Num>(value);
         set_register(Register::A, std::stoull(number.lexeme));
     } else {
-        const auto identifier = std::get<parser::Identifier>(value);
+        const auto identifier = std::get<ast::Identifier>(value);
         set_mar(identifier);
         emit_line(Load{Register::B});
     }
@@ -210,38 +211,38 @@ void Emitter::set_memory(uint64_t address) {
 
 /// Store the value in the accumulator in the memory location specified by
 /// the identifier (memory[B] <- A)
-void Emitter::set_memory(const parser::Identifier &identifier) {
+void Emitter::set_memory(const ast::Identifier &identifier) {
     set_mar(identifier);
     emit_line(Store{Register::B});
 }
 
-void Emitter::emit_read(const parser::Identifier &identifier) {
+void Emitter::emit_read(const ast::Identifier &identifier) {
     push_comment(Comment{"READ " + identifier.name.lexeme, indent_level_main});
-    emit_line(Read{});
+    emit_line(instruction::Read{});
 
     set_memory(identifier);
 }
 
-void Emitter::emit_write(const parser::Value &value) {
-    if (std::holds_alternative<parser::Num>(value)) {
-        const auto number = std::get<parser::Num>(value);
+void Emitter::emit_write(const ast::Value &value) {
+    if (std::holds_alternative<ast::Num>(value)) {
+        const auto number = std::get<ast::Num>(value);
         push_comment(Comment{"WRITE " + number.lexeme, indent_level_main});
         set_accumulator(value);
     } else {
-        const auto identifier = std::get<parser::Identifier>(value);
+        const auto identifier = std::get<ast::Identifier>(value);
         push_comment(
             Comment{"WRITE " + identifier.name.lexeme, indent_level_main});
         set_mar(identifier);
         emit_line(Load{Register::B});
     }
-    emit_line(Write{});
+    emit_line(instruction::Write{});
 }
 
-void Emitter::emit_assignment(const parser::Assignment &assignment) {
+void Emitter::emit_assignment(const ast::Assignment &assignment) {
     const auto lhs_comment = assignment.identifier.get_str() + " := ";
 
-    if (std::holds_alternative<parser::Value>(assignment.expression)) {
-        const auto &value = std::get<parser::Value>(assignment.expression);
+    if (std::holds_alternative<ast::Value>(assignment.expression)) {
+        const auto &value = std::get<ast::Value>(assignment.expression);
 
         push_comment(Comment{lhs_comment + get_str(value), indent_level_main});
         push_comment(Comment{"Fetch the value", indent_level_sub});
@@ -261,7 +262,7 @@ void Emitter::emit_assignment(const parser::Assignment &assignment) {
     };
 
     const auto &binary =
-        std::get<parser::BinaryExpression>(assignment.expression);
+        std::get<ast::BinaryExpression>(assignment.expression);
 
     auto gen_comment = [&](const char op) {
         push_comment(Comment{lhs_comment + get_str(binary.lhs) + " " + op +
@@ -456,7 +457,7 @@ void Emitter::emit_assignment(const parser::Assignment &assignment) {
     set_memory(assignment.identifier);
 }
 
-auto Emitter::emit_condition(const parser::Condition &condition,
+auto Emitter::emit_condition(const ast::Condition &condition,
                              const std::string &comment_when_false) -> Jumps {
     auto jumps_if_false = std::vector<uint64_t>{};
     auto jumps_if_true = std::vector<uint64_t>{};
@@ -556,7 +557,7 @@ auto Emitter::emit_condition(const parser::Condition &condition,
     return {jumps_if_false, jumps_if_true};
 }
 
-void Emitter::emit_if(const parser::If &if_statement) {
+void Emitter::emit_if(const ast::If &if_statement) {
     auto jumps_to_else_end = std::vector<uint64_t>{};
 
     auto jump_to_else_end = [&](Line line) {
@@ -609,7 +610,7 @@ void Emitter::emit_if(const parser::If &if_statement) {
     }
 }
 
-void Emitter::emit_repeat(const parser::Repeat &repeat) {
+void Emitter::emit_repeat(const ast::Repeat &repeat) {
     push_comment(Comment{"Repeat statement"});
 
     const auto body_start = lines.size();
@@ -635,7 +636,7 @@ void Emitter::emit_repeat(const parser::Repeat &repeat) {
     }
 }
 
-void Emitter::emit_while(const parser::While &while_statement) {
+void Emitter::emit_while(const ast::While &while_statement) {
     const auto condition_str =
         std::format("while {} {} {}", get_str(while_statement.condition.lhs),
                     while_statement.condition.op.lexeme,
@@ -670,7 +671,7 @@ void Emitter::emit_while(const parser::While &while_statement) {
     }
 }
 
-void Emitter::emit_call(const parser::Call &call) {
+void Emitter::emit_call(const ast::Call &call) {
     const auto num_args = call.args.size();
 
     push_comment(Comment{"Call " + call.name.lexeme});
@@ -711,18 +712,19 @@ void Emitter::emit_call(const parser::Call &call) {
 
         if (!variable_mem_location.is_pointer &&
             variable_mem_location.size == 1 && procedure->args[i].is_array) {
-            push_error(std::format("Procedure {} expected argument {} to be an "
-                                   "array, but {} is not.",
-                                   procedure->signature(),
-                                   procedure->args[i].identifier.lexeme,
-                                   call.args[i].lexeme),
-                       call.args[i].line, call.args[i].column);
+            push_error(
+                std::format("Procedure {} expected argument '{}' to be an "
+                            "array, but the passed argument '{}' is not",
+                            procedure->signature(),
+                            procedure->args[i].identifier.lexeme,
+                            call.args[i].lexeme),
+                call.args[i].line, call.args[i].column);
         }
 
         if (variable_mem_location.size > 1 && !procedure->args[i].is_array) {
             push_error(
-                std::format("Procedure {} expected argument {} to be an be a "
-                            "variable but found an {} which is an array.",
+                std::format("Procedure {} expected argument '{}' to be a "
+                            "variable but the passed argument '{}' is an array",
                             procedure->signature(),
                             procedure->args[i].identifier.lexeme,
                             call.args[i].lexeme),
@@ -783,16 +785,16 @@ void Emitter::set_register(Register reg, uint64_t value) {
     }
 }
 
-void Emitter::set_register(Register reg, const parser::Value &value) {
+void Emitter::set_register(Register reg, const ast::Value &value) {
     if (reg == Register::A) {
         set_accumulator(value);
         return;
     }
-    if (std::holds_alternative<parser::Num>(value)) {
-        const auto number = std::get<parser::Num>(value);
+    if (std::holds_alternative<ast::Num>(value)) {
+        const auto number = std::get<ast::Num>(value);
         set_register(reg, std::stoull(number.lexeme));
     } else {
-        const auto identifier = std::get<parser::Identifier>(value);
+        const auto identifier = std::get<ast::Identifier>(value);
         set_mar(identifier);
         emit_line(Load{Register::B});
         emit_line(Put{reg});
@@ -810,7 +812,7 @@ void Emitter::backup_register(Register reg) {
 }
 
 void Emitter::assign_memory(
-    const std::vector<parser::Declaration> &declarations) {
+    const std::vector<ast::Declaration> &declarations) {
     for (const auto &declaration : declarations) {
         const auto size = declaration.array_size.has_value()
                               ? std::stoull(declaration.array_size->lexeme)
@@ -821,20 +823,20 @@ void Emitter::assign_memory(
     }
 }
 
-void Emitter::emit_command(const parser::Command &command) {
+void Emitter::emit_command(const ast::Command &command) {
     std::visit(
         overloaded{
-            [&](const parser::Read &read) { emit_read(read.identifier); },
-            [&](const parser::Write &write) { emit_write(write.value); },
-            [&](const parser::If &if_statement) { emit_if(if_statement); },
-            [&](const parser::Repeat &repeat) { emit_repeat(repeat); },
-            [&](const parser::Assignment &assignment) {
+            [&](const ast::Read &read) { emit_read(read.identifier); },
+            [&](const ast::Write &write) { emit_write(write.value); },
+            [&](const ast::If &if_statement) { emit_if(if_statement); },
+            [&](const ast::Repeat &repeat) { emit_repeat(repeat); },
+            [&](const ast::Assignment &assignment) {
                 emit_assignment(assignment);
             },
-            [&](const parser::While &while_statement) {
+            [&](const ast::While &while_statement) {
                 emit_while(while_statement);
             },
-            [&](const parser::Call &call) { emit_call(call); },
+            [&](const ast::Call &call) { emit_call(call); },
             [&](auto arg) { assert(false); }},
         command);
 }

@@ -62,7 +62,7 @@ auto main(int argc, char **argv) -> int {
 
     for (auto &token : lexer) {
         if (token) {
-            // std::cout << token->lexeme << std::endl;
+            // std::cout << to_string(*token) << std::endl;
             tokens.push_back(*token);
         } else {
             display_error(token.error());

@@ -8,6 +8,6 @@
 #include <cln/cln.h>
 #include "mw.hpp"
 
-ProgramState<cln::cl_I> run_machine(const std::vector<emitter::Line> &lines,
+ProgramState<cln::cl_I> run_machine(const std::vector<instruction::Line> &lines,
                          ReadHandler *read_handler,
                          WriteHandler<cln::cl_I> *write_handler);

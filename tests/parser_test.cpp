@@ -224,8 +224,8 @@ TEST_CASE("Parser - parse value") {
 
         const auto value = parser.parse_value();
         CHECK(value.has_value());
-        CHECK(std::holds_alternative<parser::Num>(*value));
-        CHECK(std::get<parser::Num>(*value).lexeme == "0");
+        CHECK(std::holds_alternative<ast::Num>(*value));
+        CHECK(std::get<ast::Num>(*value).lexeme == "0");
     }
 
     SUBCASE("Identifier") {
@@ -234,9 +234,9 @@ TEST_CASE("Parser - parse value") {
 
         const auto value = parser.parse_value();
         CHECK(value.has_value());
-        CHECK(std::holds_alternative<parser::Identifier>(*value));
-        CHECK(std::get<parser::Identifier>(*value).name.lexeme == "n");
-        CHECK(!std::get<parser::Identifier>(*value).index.has_value());
+        CHECK(std::holds_alternative<ast::Identifier>(*value));
+        CHECK(std::get<ast::Identifier>(*value).name.lexeme == "n");
+        CHECK(!std::get<ast::Identifier>(*value).index.has_value());
     }
 
     SUBCASE("Identifier indexed by identifier") {
@@ -247,10 +247,10 @@ TEST_CASE("Parser - parse value") {
 
         const auto value = parser.parse_value();
         CHECK(value.has_value());
-        CHECK(std::holds_alternative<parser::Identifier>(*value));
-        CHECK(std::get<parser::Identifier>(*value).name.lexeme == "n");
-        CHECK(std::get<parser::Identifier>(*value).index.has_value());
-        CHECK(std::get<parser::Identifier>(*value).index->lexeme == "m");
+        CHECK(std::holds_alternative<ast::Identifier>(*value));
+        CHECK(std::get<ast::Identifier>(*value).name.lexeme == "n");
+        CHECK(std::get<ast::Identifier>(*value).index.has_value());
+        CHECK(std::get<ast::Identifier>(*value).index->lexeme == "m");
     }
 
     SUBCASE("Identifier indexed by num") {
@@ -260,10 +260,10 @@ TEST_CASE("Parser - parse value") {
 
         const auto value = parser.parse_value();
         CHECK(value.has_value());
-        CHECK(std::holds_alternative<parser::Identifier>(*value));
-        CHECK(std::get<parser::Identifier>(*value).name.lexeme == "n");
-        CHECK(std::get<parser::Identifier>(*value).index.has_value());
-        CHECK(std::get<parser::Identifier>(*value).index->lexeme == "0");
+        CHECK(std::holds_alternative<ast::Identifier>(*value));
+        CHECK(std::get<ast::Identifier>(*value).name.lexeme == "n");
+        CHECK(std::get<ast::Identifier>(*value).index.has_value());
+        CHECK(std::get<ast::Identifier>(*value).index->lexeme == "0");
     }
 }
 
@@ -294,11 +294,11 @@ TEST_CASE("Parser - parse expression") {
         auto parser = parser::Parser(tokens);
 
         const auto expression = parser.parse_expression();
-        const auto bin = std::get<parser::BinaryExpression>(*expression);
+        const auto bin = std::get<ast::BinaryExpression>(*expression);
 
         CHECK(expression.has_value());
-        CHECK(std::holds_alternative<parser::Num>(bin.lhs));
-        CHECK(std::holds_alternative<parser::Num>(bin.rhs));
+        CHECK(std::holds_alternative<ast::Num>(bin.lhs));
+        CHECK(std::holds_alternative<ast::Num>(bin.rhs));
         CHECK(bin.op.token_type == operator_to_tokentype(op));
     }
 
@@ -309,11 +309,11 @@ TEST_CASE("Parser - parse expression") {
         auto parser = parser::Parser(tokens);
 
         const auto expression = parser.parse_expression();
-        const auto bin = std::get<parser::BinaryExpression>(*expression);
+        const auto bin = std::get<ast::BinaryExpression>(*expression);
 
         CHECK(expression.has_value());
-        CHECK(std::holds_alternative<parser::Num>(bin.lhs));
-        CHECK(std::holds_alternative<parser::Identifier>(bin.rhs));
+        CHECK(std::holds_alternative<ast::Num>(bin.lhs));
+        CHECK(std::holds_alternative<ast::Identifier>(bin.rhs));
         CHECK(bin.op.token_type == operator_to_tokentype(op));
     }
 
@@ -324,11 +324,11 @@ TEST_CASE("Parser - parse expression") {
         auto parser = parser::Parser(tokens);
 
         const auto expression = parser.parse_expression();
-        const auto bin = std::get<parser::BinaryExpression>(*expression);
+        const auto bin = std::get<ast::BinaryExpression>(*expression);
 
         CHECK(expression.has_value());
-        CHECK(std::holds_alternative<parser::Identifier>(bin.lhs));
-        CHECK(std::holds_alternative<parser::Num>(bin.rhs));
+        CHECK(std::holds_alternative<ast::Identifier>(bin.lhs));
+        CHECK(std::holds_alternative<ast::Num>(bin.rhs));
         CHECK(bin.op.token_type == operator_to_tokentype(op));
     }
 
@@ -339,11 +339,11 @@ TEST_CASE("Parser - parse expression") {
         auto parser = parser::Parser(tokens);
 
         const auto expression = parser.parse_expression();
-        const auto bin = std::get<parser::BinaryExpression>(*expression);
+        const auto bin = std::get<ast::BinaryExpression>(*expression);
 
         CHECK(expression.has_value());
-        CHECK(std::holds_alternative<parser::Identifier>(bin.lhs));
-        CHECK(std::holds_alternative<parser::Identifier>(bin.rhs));
+        CHECK(std::holds_alternative<ast::Identifier>(bin.lhs));
+        CHECK(std::holds_alternative<ast::Identifier>(bin.rhs));
         CHECK(bin.op.token_type == operator_to_tokentype(op));
     }
 }

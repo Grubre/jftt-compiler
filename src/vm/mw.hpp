@@ -3,9 +3,10 @@
 #include "instruction.hpp"
 #include <array>
 #include <cstdint>
-#include <emitter.hpp>
+#include <deque>
 #include <iostream>
 #include <map>
+#include <vector>
 
 template<typename T>
 struct ProgramState {
@@ -64,6 +65,6 @@ class WriteHandlerVector : public WriteHandler<T> {
     std::vector<T> outputs;
 };
 
-ProgramState<long long> run_machine(const std::vector<emitter::Line> &lines,
+ProgramState<long long> run_machine(const std::vector<instruction::Line> &lines,
                          ReadHandler *read_handler,
                          WriteHandler<uint64_t> *write_handler);

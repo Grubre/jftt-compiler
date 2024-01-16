@@ -3,49 +3,13 @@
 #include "ast.hpp"
 #include "error.hpp"
 #include "expected.hpp"
-#include "lexer.hpp"
 #include "token.hpp"
 #include <span>
 #include <vector>
 
 namespace parser {
-struct Context {
-    std::vector<Declaration> declarations{};
-    std::vector<Command> commands{};
-};
 
-struct Arg {
-    Token identifier;
-    bool is_array;
-};
-
-struct Procedure {
-    Token name;
-    std::vector<Arg> args{};
-    Context context;
-
-    std::string signature() const {
-        std::string result = name.lexeme + "(";
-
-        for (const auto &arg : args) {
-            result += arg.identifier.lexeme + ", ";
-        }
-
-        if (!args.empty()) {
-            result.pop_back();
-            result.pop_back();
-        }
-
-        return result + ")";
-    }
-};
-
-struct Program {
-    std::vector<Procedure> procedures{};
-    Context main;
-};
-
-using program_type = Program;
+using program_type = ast::Program;
 
 class Parser {
   public:
@@ -55,7 +19,7 @@ class Parser {
     auto get_errors() const -> const std::vector<Error> & { return errors; }
 
     auto parse_program() -> std::optional<program_type>;
-    auto parse_procedure() -> std::optional<Procedure>;
+    auto parse_procedure() -> std::optional<ast::Procedure>;
     auto chop() -> std::optional<Token>;
     auto match_and_chop(TokenType type) -> std::optional<Token>;
     auto peek(uint64_t offset = 0) -> std::optional<Token>;
@@ -63,25 +27,25 @@ class Parser {
     auto match_next(TokenTypes... expected) -> bool;
     template <typename... TokenTypes>
     auto expect(TokenTypes... types) -> std::optional<Token>;
-    auto parse_declarations() -> std::optional<std::vector<Declaration>>;
-    auto parse_command() -> std::optional<Command>;
-    auto parse_context() -> std::optional<Context>;
-    auto parse_read() -> std::optional<Command>;
-    auto parse_write() -> std::optional<Command>;
-    auto parse_assignment() -> std::optional<Command>;
-    auto parse_expression() -> std::optional<Expression>;
-    auto parse_condition() -> std::optional<Condition>;
-    auto parse_identifier() -> std::optional<Identifier>;
-    auto parse_value() -> std::optional<Value>;
-    auto parse_while() -> std::optional<Command>;
-    auto parse_call() -> std::optional<Command>;
-    auto parse_if() -> std::optional<Command>;
-    auto parse_repeat() -> std::optional<Command>;
+    auto parse_declarations() -> std::optional<std::vector<ast::Declaration>>;
+    auto parse_command() -> std::optional<ast::Command>;
+    auto parse_context() -> std::optional<ast::Context>;
+    auto parse_read() -> std::optional<ast::Command>;
+    auto parse_write() -> std::optional<ast::Command>;
+    auto parse_assignment() -> std::optional<ast::Command>;
+    auto parse_expression() -> std::optional<ast::Expression>;
+    auto parse_condition() -> std::optional<ast::Condition>;
+    auto parse_identifier() -> std::optional<ast::Identifier>;
+    auto parse_value() -> std::optional<ast::Value>;
+    auto parse_while() -> std::optional<ast::Command>;
+    auto parse_call() -> std::optional<ast::Command>;
+    auto parse_if() -> std::optional<ast::Command>;
+    auto parse_repeat() -> std::optional<ast::Command>;
 
   private:
     std::span<Token> tokens;
 
     std::vector<Error> errors{};
-    Program program{};
+    ast::Program program{};
 };
 } // namespace parser
