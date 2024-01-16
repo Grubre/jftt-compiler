@@ -1,3 +1,4 @@
+#include <concepts>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -28,6 +29,16 @@ struct CmdlineArgs {
     std::string input_file;
     std::optional<std::string> output_file;
 };
+
+void display_errors(const ThrowsError auto &collection) {
+    bool is_error = false;
+    const auto errors = collection.get_errors();
+    for (auto &error : errors) {
+        is_error = display_error(error);
+    }
+    if (is_error)
+        exit(1);
+}
 
 auto parse_cmdline_args(int argc, char **argv) -> CmdlineArgs {
     if (argc < 2) {
@@ -78,26 +89,14 @@ auto main(int argc, char **argv) -> int {
 
     auto program = parser.parse_program();
 
-    if (program) {
-    } else {
-        bool is_error = false;
-        const auto errors = parser.get_errors();
-        for (auto &error : errors) {
-            is_error = display_error(error);
-        }
-        if (is_error)
-            return 1;
+    if (!program) {
+        display_errors(parser);
     }
 
     auto analyzer = Analyzer(*program);
 
     if (!analyzer.analyze()) {
-        bool is_error = false;
-        for (const auto &error : analyzer.get_errors()) {
-            is_error = display_error(error);
-        }
-        if (is_error)
-            return 1;
+        display_errors(analyzer);
     }
 
     auto emitter = emitter::Emitter(std::move(*program));
@@ -105,12 +104,7 @@ auto main(int argc, char **argv) -> int {
     emitter.emit();
 
     if (emitter.get_errors().size() > 0) {
-        bool is_error = false;
-        for (auto &error : emitter.get_errors()) {
-            is_error = display_error(error);
-        }
-        if (is_error)
-            return 1;
+        display_errors(emitter);
     }
 
     if (args.output_file) {

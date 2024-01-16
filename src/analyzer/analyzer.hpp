@@ -13,7 +13,7 @@ class Analyzer {
     void error(const std::string &message, unsigned line, unsigned column);
     void warn(const std::string &message, unsigned line, unsigned column);
 
-    auto get_errors() -> const std::span<const Error> { return errors; }
+    auto get_errors() const -> const std::span<const Error> { return errors; }
 
   private:
     std::vector<Error> errors{};

@@ -15,3 +15,6 @@ struct Error {
 
 // true if error, false if warning
 auto display_error(const Error &error) -> bool;
+
+template <typename T>
+concept ThrowsError = requires(T t) { t.get_errors(); };
