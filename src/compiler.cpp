@@ -93,7 +93,7 @@ auto main(int argc, char **argv) -> int {
         display_errors(parser);
     }
 
-    auto analyzer = Analyzer(*program);
+    auto analyzer = analyzer::Analyzer(*program);
 
     if (!analyzer.analyze()) {
         display_errors(analyzer);

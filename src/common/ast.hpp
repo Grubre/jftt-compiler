@@ -136,5 +136,4 @@ struct Program {
     Context main;
 };
 
-
-} // namespace parser
+} // namespace ast

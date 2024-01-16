@@ -58,7 +58,8 @@ auto parse_lines(const std::vector<std::string> &lines)
             std::holds_alternative<instruction::Jzero>(*instruction)) {
             try {
                 const auto instruction_number = std::stoll(tokens[1]);
-                instruction::set_jump_location(*instruction, instruction_number);
+                instruction::set_jump_location(*instruction,
+                                               instruction_number);
                 instructions.push_back(*instruction);
             } catch (const std::invalid_argument &) {
                 std::cerr << std::format(
@@ -89,7 +90,8 @@ auto parse_lines(const std::vector<std::string> &lines)
     return instructions;
 }
 
-VirtualMachine::VirtualMachine(std::vector<instruction::Instruction> instructions)
+VirtualMachine::VirtualMachine(
+    std::vector<instruction::Instruction> instructions)
     : instructions(std::move(instructions)) {
     lr = 0;
     srand(time(NULL));

@@ -8,8 +8,7 @@
 #include <map>
 #include <vector>
 
-template<typename T>
-struct ProgramState {
+template <typename T> struct ProgramState {
     std::array<T, 8> r;
     std::map<long long, T> pam;
     bool error;
@@ -36,35 +35,28 @@ class ReadHandlerDeque : public ReadHandler {
     std::deque<uint64_t> input_values;
 };
 
-template<typename T>
-class WriteHandler {
+template <typename T> class WriteHandler {
   public:
     virtual void handle_output(T output) = 0;
 };
 
-template<typename T>
-class WriteHandlerStdout : public WriteHandler<T> {
+template <typename T> class WriteHandlerStdout : public WriteHandler<T> {
   public:
     void handle_output(T output) override {
         std::cout << "> " << output << std::endl;
     }
 };
 
-template<typename T>
-class WriteHandlerVector : public WriteHandler<T> {
+template <typename T> class WriteHandlerVector : public WriteHandler<T> {
   public:
-    void handle_output(T output) override {
-        outputs.push_back(output);
-    }
+    void handle_output(T output) override { outputs.push_back(output); }
 
-    auto get_outputs() -> const std::vector<T> & {
-        return outputs;
-    }
+    auto get_outputs() -> const std::vector<T> & { return outputs; }
 
   private:
     std::vector<T> outputs;
 };
 
 ProgramState<long long> run_machine(const std::vector<instruction::Line> &lines,
-                         ReadHandler *read_handler,
-                         WriteHandler<uint64_t> *write_handler);
+                                    ReadHandler *read_handler,
+                                    WriteHandler<uint64_t> *write_handler);

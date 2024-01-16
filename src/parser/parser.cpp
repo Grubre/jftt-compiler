@@ -456,9 +456,9 @@ auto Parser::parse_procedure() -> std::optional<ast::Procedure> {
     }
 
     return ast::Procedure{.name = *name,
-                     .args = args,
-                     .context = Context{.declarations = *declarations,
-                                        .commands = commands}};
+                          .args = args,
+                          .context = Context{.declarations = *declarations,
+                                             .commands = commands}};
 }
 
 auto Parser::parse_while() -> std::optional<Command> {
@@ -576,8 +576,8 @@ auto Parser::parse_if() -> std::optional<Command> {
     }
 
     return ast::If{.condition = *condition,
-              .commands = commands,
-              .else_commands = else_commands};
+                   .commands = commands,
+                   .else_commands = else_commands};
 }
 
 auto Parser::parse_repeat() -> std::optional<Command> {

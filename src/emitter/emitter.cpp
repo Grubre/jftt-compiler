@@ -261,8 +261,7 @@ void Emitter::emit_assignment(const ast::Assignment &assignment) {
         return jump_line;
     };
 
-    const auto &binary =
-        std::get<ast::BinaryExpression>(assignment.expression);
+    const auto &binary = std::get<ast::BinaryExpression>(assignment.expression);
 
     auto gen_comment = [&](const char op) {
         push_comment(Comment{lhs_comment + get_str(binary.lhs) + " " + op +
@@ -811,8 +810,7 @@ void Emitter::backup_register(Register reg) {
     emit_line(Store{Register::B});
 }
 
-void Emitter::assign_memory(
-    const std::vector<ast::Declaration> &declarations) {
+void Emitter::assign_memory(const std::vector<ast::Declaration> &declarations) {
     for (const auto &declaration : declarations) {
         const auto size = declaration.array_size.has_value()
                               ? std::stoull(declaration.array_size->lexeme)
@@ -825,19 +823,18 @@ void Emitter::assign_memory(
 
 void Emitter::emit_command(const ast::Command &command) {
     std::visit(
-        overloaded{
-            [&](const ast::Read &read) { emit_read(read.identifier); },
-            [&](const ast::Write &write) { emit_write(write.value); },
-            [&](const ast::If &if_statement) { emit_if(if_statement); },
-            [&](const ast::Repeat &repeat) { emit_repeat(repeat); },
-            [&](const ast::Assignment &assignment) {
-                emit_assignment(assignment);
-            },
-            [&](const ast::While &while_statement) {
-                emit_while(while_statement);
-            },
-            [&](const ast::Call &call) { emit_call(call); },
-            [&](auto arg) { assert(false); }},
+        overloaded{[&](const ast::Read &read) { emit_read(read.identifier); },
+                   [&](const ast::Write &write) { emit_write(write.value); },
+                   [&](const ast::If &if_statement) { emit_if(if_statement); },
+                   [&](const ast::Repeat &repeat) { emit_repeat(repeat); },
+                   [&](const ast::Assignment &assignment) {
+                       emit_assignment(assignment);
+                   },
+                   [&](const ast::While &while_statement) {
+                       emit_while(while_statement);
+                   },
+                   [&](const ast::Call &call) { emit_call(call); },
+                   [&](auto arg) { assert(false); }},
         command);
 }
 

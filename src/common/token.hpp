@@ -136,12 +136,17 @@ struct Token {
     }
 };
 
-inline auto to_string(const Token& token) -> std::string {
-    auto out = std::format("({}:{}, {})",
-            token.line, token.column, token.lexeme);
+inline auto to_string(const Token &token) -> std::string {
+    auto out =
+        std::format("({}:{}, {})", token.line, token.column, token.lexeme);
 
     return out;
 }
+
+template <typename Variables>
+concept IdentifierVarCollection = requires(Variables variables) {
+    { variables[0].identifier } -> std::convertible_to<Token>;
+};
 
 namespace std {
 template <> struct hash<Token> {
