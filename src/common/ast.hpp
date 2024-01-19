@@ -71,6 +71,23 @@ struct Write {
 struct Call {
     Token name;
     std::vector<Token> args;
+
+    auto signature() const -> std::string {
+        std::string result = name.lexeme + "(";
+
+        for (const auto &arg : args) {
+            result += arg.lexeme + ", ";
+        }
+
+        if (!args.empty()) {
+            result.pop_back();
+            result.pop_back();
+        }
+
+        return result + ")";
+    }
+
+    auto arity() const -> int { return args.size(); }
 };
 
 struct If;
@@ -129,6 +146,8 @@ struct Procedure {
 
         return result + ")";
     }
+
+    auto arity() const -> int { return args.size(); }
 };
 
 struct Program {
