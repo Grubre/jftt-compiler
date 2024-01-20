@@ -58,8 +58,8 @@ auto parse_lines(const std::vector<std::string> &lines)
             std::holds_alternative<instruction::Jzero>(*instruction)) {
             try {
                 const auto instruction_number = std::stoll(tokens[1]);
-                instruction::set_jump_location(*instruction,
-                                               instruction_number);
+                instruction::set_jump_location(
+                    *instruction, (unsigned int)instruction_number);
                 instructions.push_back(*instruction);
             } catch (const std::invalid_argument &) {
                 std::cerr << std::format(
@@ -94,8 +94,8 @@ VirtualMachine::VirtualMachine(
     std::vector<instruction::Instruction> instructions)
     : instructions(std::move(instructions)) {
     lr = 0;
-    srand(time(NULL));
-    for (int i = 0; i < 8; i++)
+    srand((unsigned int)time(NULL));
+    for (auto i = 0u; i < 8; i++)
         r[i] = rand();
     io = 0;
     t = 0;
@@ -122,97 +122,97 @@ auto VirtualMachine::process_next_instruction() -> StateCode {
                               state_code = StateCode::PENDING_OUTPUT;
                           },
                           [&](const instruction::Load &load) {
-                              r[0] = pam[r[(int)load.address]];
+                              r[0] = pam[r[(unsigned int)load.address]];
                               t += 50;
                               lr++;
                           },
                           [&](const instruction::Store &store) {
-                              pam[r[(int)store.address]] = r[0];
+                              pam[r[(unsigned int)store.address]] = r[0];
                               t += 50;
                               lr++;
                           },
                           [&](const instruction::Add &add) {
-                              r[0] += r[(int)add.address];
+                              r[0] += r[(unsigned int)add.address];
                               t += 5;
                               lr++;
                           },
                           [&](const instruction::Sub &sub) {
-                              r[0] -= r[0] >= r[(int)sub.address]
-                                          ? r[(int)sub.address]
+                              r[0] -= r[0] >= r[(unsigned int)sub.address]
+                                          ? r[(unsigned int)sub.address]
                                           : r[0];
                               t += 5;
                               lr++;
                           },
                           [&](const instruction::Get &get) {
-                              r[0] = r[(int)get.address];
+                              r[0] = r[(unsigned int)get.address];
                               t += 1;
                               lr++;
                           },
                           [&](const instruction::Put &put) {
-                              r[(int)put.address] = r[0];
+                              r[(unsigned int)put.address] = r[0];
                               t += 1;
                               lr++;
                           },
                           [&](const instruction::Rst &rst) {
-                              r[(int)rst.address] = 0;
+                              r[(unsigned int)rst.address] = 0;
                               t += 1;
                               lr++;
                           },
                           [&](const instruction::Inc &inc) {
-                              r[(int)inc.address]++;
+                              r[(unsigned int)inc.address]++;
                               t += 1;
                               lr++;
                           },
                           [&](const instruction::Dec &dec) {
-                              if (r[(int)dec.address] > 0)
-                                  r[(int)dec.address]--;
+                              if (r[(unsigned int)dec.address] > 0)
+                                  r[(unsigned int)dec.address]--;
                               t += 1;
                               lr++;
                           },
                           [&](const instruction::Shl &shl) {
-                              r[(int)shl.address] <<= 1;
+                              r[(unsigned int)shl.address] <<= 1;
                               t += 1;
                               lr++;
                           },
                           [&](const instruction::Shr &shr) {
-                              r[(int)shr.address] >>= 1;
+                              r[(unsigned int)shr.address] >>= 1;
                               t += 1;
                               lr++;
                           },
                           [&](const instruction::Jump &jump) {
-                              lr = jump.line;
+                              lr = (long long)jump.line;
                               t += 1;
                           },
                           [&](const instruction::Jpos &jpos) {
                               if (r[0] > 0)
-                                  lr = jpos.line;
+                                  lr = (long long)jpos.line;
                               else
                                   lr++;
                               t += 1;
                           },
                           [&](const instruction::Jzero &jzero) {
                               if (r[0] == 0)
-                                  lr = jzero.line;
+                                  lr = (long long)jzero.line;
                               else
                                   lr++;
                               t += 1;
                           },
                           [&](const instruction::Strk &strk) {
-                              r[(int)strk.reg] = lr;
+                              r[(unsigned int)strk.reg] = lr;
                               t += 1;
                               lr++;
                           },
                           [&](const instruction::Jumpr &jumpr) {
-                              lr = r[(int)jumpr.reg];
+                              lr = r[(unsigned int)jumpr.reg];
                               t += 1;
                           },
                           [&](const instruction::Halt &) {
                               state_code = StateCode::HALTED;
                           },
-                          [&](const instruction::Comment &comment) {}},
-               instructions[lr]);
+                          [&](const instruction::Comment &) {}},
+               instructions[(unsigned long)lr]);
 
-    if (lr < 0 || lr >= (int)instructions.size()) {
+    if (lr < 0 || lr >= (unsigned int)instructions.size()) {
         return StateCode::ERROR;
     }
 
