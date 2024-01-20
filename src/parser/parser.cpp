@@ -50,8 +50,10 @@ auto Parser::match_next(TokenTypes... expected) -> bool {
 template <typename... TokenTypes>
 auto Parser::expect(TokenTypes... types) -> std::optional<Token> {
     if (tokens.empty()) {
-        errors.push_back(
-            Error{.source = error_source, .message = "Unexpected end of file"});
+        errors.push_back(Error{.source = error_source,
+                               .message = "Unexpected end of file",
+                               .line = 0,
+                               .column = 0});
         return std::nullopt;
     }
     auto token = tokens.front();
@@ -245,7 +247,7 @@ auto Parser::parse_identifier() -> std::optional<Identifier> {
         return Identifier{.name = *identifier, .index = *index};
     }
 
-    return Identifier{.name = *identifier};
+    return Identifier{.name = *identifier, .index = std::nullopt};
 }
 
 auto Parser::parse_value() -> std::optional<Value> {
@@ -284,8 +286,10 @@ auto Parser::parse_command() -> std::optional<Command> {
     const auto next = peek();
 
     if (!next) {
-        errors.push_back(
-            Error{.source = error_source, .message = "Unexpected end of file"});
+        errors.push_back(Error{.source = error_source,
+                               .message = "Unexpected end of file",
+                               .line = 0,
+                               .column = 0});
 
         return std::nullopt;
     }

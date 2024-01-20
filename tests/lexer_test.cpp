@@ -38,8 +38,8 @@ auto generate_random_pidentifier() -> std::string {
     word.reserve(length);
 
     auto random_char = []() -> char {
-        int char_index = char_dist(gen);
-        return char_index < 26 ? 'a' + char_index : '_';
+        auto char_index = char_dist(gen);
+        return char_index < 26 ? 'a' + (char)char_index : '_';
     };
 
     std::ranges::generate_n(std::back_inserter(word), length, random_char);

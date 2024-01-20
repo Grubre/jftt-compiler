@@ -20,22 +20,14 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     include(CTest)
 endif()
 
-
-include(CheckCXXCompilerFlag)
-option(ENABLE_CUSTOM_COMPILER_FLAGS "Enables custom compiler flags" ON)
-if (ENABLE_CUSTOM_COMPILER_FLAGS)
-    list(APPEND custom_compiler_flags
-        -Wall
-        -Wextra
-        -Wpedantic
-        -Werror
-        -Wconversion
-    )
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND CMAKE_CXX_COMPILER_ID MATCHES
+                                                "GNU|Clang")
+    add_compile_options(-Wall -Wextra -Wpedantic -Wconversion)
 endif()
 
 option(ENABLE_SANITIZERS "Enables AddressSanitizer and UndefinedBehaviorSanitizer." OFF)
 if (ENABLE_SANITIZERS)
-    list(APPEND custom_compiler_flags
+    add_compile_options(
         -fno-omit-frame-pointer
         -fsanitize=address
         -fsanitize=undefined
@@ -51,17 +43,8 @@ if (ENABLE_SAFE_STACK)
     if (ENABLE_SANITIZERS)
         message(FATAL_ERROR "ENABLE_SAFE_STACK cannot be used in combination with ENABLE_SANITIZERS")
     endif()
-    list(APPEND custom_compiler_flags
-        -fsanitize=safe-stack
-        )
+    add_compile_options(-fsanitize=safe-stack)
 endif()
-
-foreach(compiler_flag ${custom_compiler_flags})
-    string(REGEX REPLACE "[^a-zA-Z0-9=\-]" "" current_variable ${compiler_flag})
-
-    list(APPEND supported_compiler_flags)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${compiler_flag}")
-endforeach()
 
 add_subdirectory(external)
 add_subdirectory(src)
@@ -71,7 +54,7 @@ if (ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
 
-option(BUILD_DEBUGGER "Builds debugger" ON)
+option(BUILD_DEBUGGER "Builds debugger" OFF)
 if (BUILD_DEBUGGER)
     add_subdirectory(debugger)
 endif()

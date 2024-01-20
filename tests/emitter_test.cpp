@@ -79,7 +79,7 @@ TEST_CASE_TEMPLATE("Official tests", T, uint64_t, cln::cl_I) {
             const auto outputs = write_handler->get_outputs();
 
             CHECK(outputs.size() == expected_outputs.size());
-            for (auto i = 0; i < outputs.size(); i++)
+            for (auto i = 0u; i < outputs.size(); i++)
                 CHECK(outputs[i] == expected_outputs[i]);
         }
     }
@@ -141,7 +141,7 @@ TEST_CASE("Slowik tests") {
             const auto outputs = write_handler->get_outputs();
 
             CHECK(outputs.size() == expected_outputs.size());
-            for (auto i = 0; i < outputs.size(); i++)
+            for (auto i = 0u; i < outputs.size(); i++)
                 CHECK(outputs[i] == expected_outputs[i]);
         }
     }

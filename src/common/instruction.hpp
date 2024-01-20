@@ -241,7 +241,7 @@ inline void set_jump_location(Instruction &instruction, uint64_t location) {
     std::visit(overloaded{[&](Jump &jump) { jump.line = location; },
                           [&](Jpos &jpos) { jpos.line = location; },
                           [&](Jzero &jzero) { jzero.line = location; },
-                          [&](auto arg) { assert(false); }},
+                          [&](auto) { assert(false); }},
                instruction);
 }
 
@@ -259,7 +259,7 @@ inline void set_instruction_register(Instruction &instruction, Register reg) {
                           [&](Shr &shr) { shr.address = reg; },
                           [&](Strk &strk) { strk.reg = reg; },
                           [&](Jumpr &jumpr) { jumpr.reg = reg; },
-                          [&](auto arg) { assert(false); }},
+                          [&](auto) { assert(false); }},
                instruction);
 }
 
