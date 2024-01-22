@@ -34,27 +34,27 @@ auto ReadHandlerDeque::get_next_input() -> uint64_t {
 }
 
 ProgramState<long long> run_machine(const std::vector<instruction::Line> &lines,
-                         ReadHandler *read_handler,
-                         WriteHandler<uint64_t> *write_handler) {
+                                    ReadHandler *read_handler,
+                                    WriteHandler<uint64_t> *write_handler) {
     std::map<long long, long long> pam;
 
     std::vector<uint64_t> outputs;
 
     std::array<long long, 8> r;
-    long long tmp;
+    // long long tmp;
     long long lr;
 
     long long t, io;
 
     lr = 0;
-    srand(time(NULL));
+    srand((unsigned int)time(NULL));
     for (int i = 0; i < 8; i++)
         r[i] = rand();
     t = 0;
     io = 0;
 
-    while (
-        !std::holds_alternative<instruction::Halt>(lines[lr].instruction)) // HALT
+    while (!std::holds_alternative<instruction::Halt>(
+        lines[lr].instruction)) // HALT
     {
         std::visit(overloaded{[&](const instruction::Read &) {
                                   r[0] = read_handler->get_next_input();
@@ -152,7 +152,7 @@ ProgramState<long long> run_machine(const std::vector<instruction::Line> &lines,
                                   t += 1;
                               },
                               [&](const instruction::Halt &) {},
-                              [&](const instruction::Comment &comment) {}},
+                              [&](const instruction::Comment) {}},
                    lines[lr].instruction);
 
         if (lr < 0 || lr >= (int)lines.size()) {

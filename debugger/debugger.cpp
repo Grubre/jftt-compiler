@@ -27,7 +27,7 @@ static constexpr auto updated_text_color = Color::Green;
 static constexpr auto title_text_color = Color::White;
 static constexpr auto title_text_color_focused = Color::Green;
 
-auto number_len(int number) -> int {
+template <typename T> auto number_len(T number) -> int {
     auto len = 0;
 
     if (number == 0)
@@ -72,22 +72,25 @@ class LinesDisplay : public ComponentBase {
         return vbox(std::move(elements));
     }
 
-    void breakpoint(int line) {
+    void breakpoint(long long line) {
         if (breakpoints.find(line) != breakpoints.end()) {
             breakpoints.erase(line);
-        } else if (line < lines.size()) {
+        } else if (line < (long long)lines.size()) {
             breakpoints[line] = true;
         }
     }
 
-    auto get_breakpoints() const -> const std::unordered_map<int, bool> & {
+    auto get_breakpoints() const
+        -> const std::unordered_map<long long, bool> & {
         return breakpoints;
     }
 
-    auto is_breakpoint(int line) -> bool { return breakpoints.contains(line); }
+    auto is_breakpoint(long long line) -> bool {
+        return breakpoints.contains(line);
+    }
 
-    void select_line(int line) { selected_line = line; }
-    void update_scroll(int scroll) { scrolled = scroll; }
+    void select_line(long long line) { selected_line = line; }
+    void update_scroll(long long scroll) { scrolled = scroll; }
 
     virtual bool OnEvent(Event event) final {
         if (event.is_mouse()) {
@@ -102,9 +105,9 @@ class LinesDisplay : public ComponentBase {
   private:
     Box breakpoint_box;
     std::vector<std::string> lines;
-    int selected_line = 0;
-    int scrolled = 0;
-    std::unordered_map<int, bool> breakpoints{};
+    long long selected_line = 0;
+    long long scrolled = 0;
+    std::unordered_map<long long, bool> breakpoints{};
 };
 
 class RegisterDisplay : public ComponentBase {
@@ -175,8 +178,8 @@ class ScrollerBase : public ComponentBase {
         Add(child);
     }
 
-    void jump(int line) {
-        scrolled = line;
+    void jump(long long line) {
+        scrolled = (int)line;
         scrolled = std::max(box_.y_max / 2 - 1,
                             std::min(size_ - (box_.y_max / 2) - 1, scrolled));
 
@@ -186,8 +189,6 @@ class ScrollerBase : public ComponentBase {
   private:
     Element Render() final {
         const auto focused = Focused() ? focus : ftxui::select;
-
-        const auto focused_str = Focused() ? "focused" : "";
 
         Element background = ComponentBase::Render();
         background->ComputeRequirement();
@@ -203,8 +204,8 @@ class ScrollerBase : public ComponentBase {
     }
 
     bool OnEvent(Event event) final {
-        if (event.is_mouse() &&
-                box_.Contain(event.mouse().x, event.mouse().y) ||
+        if ((event.is_mouse() &&
+                box_.Contain(event.mouse().x, event.mouse().y)) ||
             !event.is_mouse())
             ComponentBase::OnEvent(event);
 
@@ -424,6 +425,7 @@ int main(int argc, char **argv) {
             if (expects_input) {
                 vm.set_input(std::stoll(console_input_str));
                 expects_input = false;
+                line_scroller->TakeFocus();
                 update_ui();
                 return false;
             }
@@ -442,6 +444,7 @@ int main(int argc, char **argv) {
             }
 
             console_input_str.clear();
+            update_ui();
         }
         bool ret = (ftxui::Event::Character('\n') == event);
         return ret;
@@ -520,6 +523,7 @@ int main(int argc, char **argv) {
             break;
         case StateCode::PENDING_INPUT:
             expects_input = true;
+            console_input->TakeFocus();
             break;
         case StateCode::PENDING_OUTPUT:
             push_output(vm.get_output());

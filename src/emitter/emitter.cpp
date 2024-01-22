@@ -183,7 +183,7 @@ void Emitter::set_jump_location(Instruction &instruction, uint64_t location) {
     std::visit(overloaded{[&](Jump &jump) { jump.line = location; },
                           [&](Jpos &jpos) { jpos.line = location; },
                           [&](Jzero &jzero) { jzero.line = location; },
-                          [&](auto arg) { assert(false); }},
+                          [&](auto) { assert(false); }},
                instruction);
 }
 
@@ -834,7 +834,7 @@ void Emitter::emit_command(const ast::Command &command) {
                        emit_while(while_statement);
                    },
                    [&](const ast::Call &call) { emit_call(call); },
-                   [&](auto arg) { assert(false); }},
+                   [&](auto) { assert(false); }},
         command);
 }
 
