@@ -427,11 +427,15 @@ int main(int argc, char **argv) {
                 expects_input = false;
                 line_scroller->TakeFocus();
                 update_ui();
-                return false;
             }
             console_lines.push_back(console_input_str);
             if (console_lines.size() > 10)
                 console_lines.pop_front();
+
+            if (expects_input) {
+                console_input_str.clear();
+                return false;
+            }
 
             const auto command = split(console_input_str);
             if (command[0] == "b") {
