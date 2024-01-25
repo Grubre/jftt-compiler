@@ -1,12 +1,13 @@
 #include "analyzer.hpp"
 #include "instruction.hpp"
+#include <iostream>
 #include <unordered_map>
 
 using namespace analyzer;
 
 void Analyzer::check_duplicate_declarations(
     var_map &already_declared,
-    const IdentifierVarCollection auto &new_declarations) {
+    const IdentifierVarCollection auto &new_declarations, bool is_args) {
     for (const auto &var : new_declarations) {
         if (already_declared.contains(var.identifier.lexeme)) {
             const auto previous_declaration =
@@ -19,19 +20,30 @@ void Analyzer::check_duplicate_declarations(
                               var.identifier.line, var.identifier.column),
                   var.identifier.line, var.identifier.column);
         }
-        already_declared[var.identifier.lexeme] = Variable{&var.identifier};
+        already_declared[var.identifier.lexeme] =
+            Variable{.token = &var.identifier, .is_pointer = is_args};
+        already_declared[var.identifier.lexeme].initialized = is_args;
+    }
+}
+
+void Analyzer::check_unused_variables(const var_map &variables) {
+    for (const auto &[name, variable] : variables) {
+        if (!variable.used) {
+            warn(std::format("Unused variable '{}'", name),
+                 variable.token->line, variable.token->column);
+        }
     }
 }
 
 void Analyzer::analyze_procedure(const ast::Procedure &procedure) {
     auto variable_declarations = var_map{};
-    check_duplicate_declarations(variable_declarations, procedure.args);
+    check_duplicate_declarations(variable_declarations, procedure.args, true);
 
     analyze_context(procedure.context, variable_declarations);
 }
 
 void Analyzer::analyze_context(const ast::Context &context, var_map variables) {
-    check_duplicate_declarations(variables, context.declarations);
+    check_duplicate_declarations(variables, context.declarations, false);
 
     analyze_commands(context.commands, variables);
 }
@@ -45,6 +57,16 @@ void Analyzer::analyze_commands(const std::vector<ast::Command> &commands,
                     analyze_assignment(assignment, variables);
                 },
                 [&](const ast::Read &read) {
+                    if (!variables.contains(read.identifier.name.lexeme)) {
+                        error(std::format("Read of undeclared variable '{}'",
+                                          read.identifier.name.lexeme),
+                              read.identifier.name.line,
+                              read.identifier.name.column);
+                        return;
+                    }
+
+                    variables[read.identifier.name.lexeme].initialized = true;
+
                     analyze_variable_use(read.identifier, variables);
                 },
                 [&](const ast::Write &write) {
@@ -63,6 +85,11 @@ void Analyzer::analyze_commands(const std::vector<ast::Command> &commands,
                                           call.signature()),
                               call.name.line, call.name.column);
                         return;
+                    }
+
+                    for (auto &arg : call.args) {
+                        variables[arg.lexeme].initialized = true;
+                        analyze_variable_use(arg, variables);
                     }
 
                     if (call.arity() !=
@@ -97,6 +124,10 @@ void Analyzer::analyze_commands(const std::vector<ast::Command> &commands,
 
 void Analyzer::analyze_assignment(const ast::Assignment &assignment,
                                   var_map &variables) {
+    if (variables.contains(assignment.identifier.name.lexeme)) {
+        variables[assignment.identifier.name.lexeme].initialized = true;
+    }
+
     analyze_variable_use(assignment.identifier, variables);
 
     std::visit(
@@ -119,25 +150,36 @@ void Analyzer::analyze_assignment(const ast::Assignment &assignment,
         assignment.expression);
 }
 
-void Analyzer::analyze_variable_use(const ast::Identifier &identifier,
-                                    const var_map &variables) {
-    if (!variables.contains(identifier.name.lexeme)) {
-        error(std::format("Use of undeclared variable '{}'",
-                          identifier.name.lexeme),
-              identifier.name.line, identifier.name.column);
+void Analyzer::analyze_variable_use(const Token &pidentifier,
+                                    var_map &variables) {
+    if (!variables.contains(pidentifier.lexeme)) {
+        error(
+            std::format("Use of undeclared variable '{}'", pidentifier.lexeme),
+            pidentifier.line, pidentifier.column);
     }
+
+    variables[pidentifier.lexeme].used = true;
+
+    if (!variables[pidentifier.lexeme].initialized) {
+        warn(std::format("Usage of unitialized variable '{}'",
+                         pidentifier.lexeme),
+             pidentifier.line, pidentifier.column);
+    }
+}
+
+void Analyzer::analyze_variable_use(const ast::Identifier &identifier,
+                                    var_map &variables) {
+    analyze_variable_use(identifier.name, variables);
 
     if (!identifier.index.has_value()) {
         return;
     }
 
-    if (identifier.index->token_type == TokenType::Pidentifier) {
-        if (!variables.contains(identifier.index->lexeme)) {
-            error(std::format("Use of undeclared variable '{}'",
-                              identifier.index->lexeme),
-                  identifier.index->line, identifier.index->column);
-        }
+    if (identifier.index->token_type != TokenType::Pidentifier) {
+        return;
     }
+
+    analyze_variable_use(*identifier.index, variables);
 }
 
 auto Analyzer::analyze() -> bool {
