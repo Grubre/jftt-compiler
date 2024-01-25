@@ -27,10 +27,8 @@ class Analyzer {
     auto analyze() -> bool;
     void analyze_procedure(const ast::Procedure &procedure);
     void analyze_context(const ast::Context &context, var_map variables);
-    void analyze_commands(const std::vector<ast::Command> &commands,
-                          var_map already_declared);
-    void analyze_assignment(const ast::Assignment &assignment,
-                            var_map &variables);
+    void analyze_commands(const std::vector<ast::Command> &commands, var_map already_declared);
+    void analyze_assignment(const ast::Assignment &assignment, var_map &variables);
     void analyze_read(const ast::Read &read, var_map &variables);
     void analyze_write(const ast::Write &write, var_map &variables);
     void analyze_while(const ast::While &while_, var_map &variables);
@@ -38,12 +36,10 @@ class Analyzer {
 
     void check_unused_variables(const var_map &variables);
 
-    void check_duplicate_declarations(
-        var_map &variables, const IdentifierVarCollection auto &identifiers,
-        bool is_args);
+    void check_duplicate_declarations(var_map &variables, const IdentifierVarCollection auto &identifiers,
+                                      bool is_args);
 
-    void analyze_variable_use(const ast::Identifier &variable,
-                              var_map &variables);
+    void analyze_variable_use(const ast::Identifier &variable, var_map &variables);
     void analyze_variable_use(const Token &pidentifier, var_map &variables);
 
     void error(const std::string &message, unsigned line, unsigned column);

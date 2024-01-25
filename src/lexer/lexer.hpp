@@ -46,9 +46,7 @@ class Lexer {
             return (lexer == other.lexer && currentToken == other.currentToken);
         }
 
-        bool operator!=(const Iterator &other) const {
-            return !(*this == other);
-        }
+        bool operator!=(const Iterator &other) const { return !(*this == other); }
 
       private:
         Lexer *lexer;
@@ -64,8 +62,7 @@ class Lexer {
     auto peek() -> std::optional<char>;
     void trim_whitespace();
     void newline();
-    auto make_token(TokenType token_type, std::string lexeme,
-                    unsigned int column) -> Token;
+    auto make_token(TokenType token_type, std::string lexeme, unsigned int column) -> Token;
 
   private:
     unsigned line_number;

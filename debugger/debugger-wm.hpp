@@ -18,8 +18,7 @@ enum class StateCode {
     ERROR,
 };
 
-auto parse_lines(const std::vector<std::string> &lines)
-    -> std::vector<instruction::Instruction>;
+auto parse_lines(const std::vector<std::string> &lines) -> std::vector<instruction::Instruction>;
 
 auto split(std::string const &input) -> std::vector<std::string>;
 

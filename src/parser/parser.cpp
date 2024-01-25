@@ -33,27 +33,21 @@ auto Parser::peek(uint64_t offset) -> std::optional<Token> {
     return tokens[offset];
 }
 
-template <typename... TokenTypes>
-auto Parser::match_next(TokenTypes... expected) -> bool {
+template <typename... TokenTypes> auto Parser::match_next(TokenTypes... expected) -> bool {
     if (tokens.empty())
         return false;
 
     std::initializer_list<TokenType> expected_types{expected...};
 
-    if (std::find(expected_types.begin(), expected_types.end(),
-                  tokens.front().token_type) == expected_types.end()) {
+    if (std::find(expected_types.begin(), expected_types.end(), tokens.front().token_type) == expected_types.end()) {
         return false;
     }
     return true;
 }
 
-template <typename... TokenTypes>
-auto Parser::expect(TokenTypes... types) -> std::optional<Token> {
+template <typename... TokenTypes> auto Parser::expect(TokenTypes... types) -> std::optional<Token> {
     if (tokens.empty()) {
-        errors.push_back(Error{.source = error_source,
-                               .message = "Unexpected end of file",
-                               .line = 0,
-                               .column = 0});
+        errors.push_back(Error{.source = error_source, .message = "Unexpected end of file", .line = 0, .column = 0});
         return std::nullopt;
     }
     auto token = tokens.front();
@@ -61,8 +55,7 @@ auto Parser::expect(TokenTypes... types) -> std::optional<Token> {
 
     std::initializer_list<TokenType> expected_types{types...};
 
-    if (std::find(expected_types.begin(), expected_types.end(),
-                  token.token_type) == expected_types.end()) {
+    if (std::find(expected_types.begin(), expected_types.end(), token.token_type) == expected_types.end()) {
         std::string expected_types_str;
         for (auto type : expected_types) {
             if (!expected_types_str.empty())
@@ -71,8 +64,7 @@ auto Parser::expect(TokenTypes... types) -> std::optional<Token> {
         }
 
         errors.push_back(Error{.source = error_source,
-                               .message = "Expected " + expected_types_str +
-                                          " but found " + token.lexeme,
+                               .message = "Expected " + expected_types_str + " but found " + token.lexeme,
                                .line = token.line,
                                .column = token.column});
         return std::nullopt;
@@ -101,8 +93,7 @@ auto Parser::parse_declarations() -> std::optional<std::vector<Declaration>> {
             }
         }
 
-        declarations.push_back(
-            Declaration{.identifier = *identifier, .array_size = array_size});
+        declarations.push_back(Declaration{.identifier = *identifier, .array_size = array_size});
 
         if (match_next(TokenType::Comma)) {
             chop();
@@ -125,8 +116,7 @@ auto Parser::parse_expression() -> std::optional<Expression> {
         return *lhs;
     }
 
-    const auto op = expect(TokenType::Plus, TokenType::Minus, TokenType::Star,
-                           TokenType::Slash, TokenType::Percent);
+    const auto op = expect(TokenType::Plus, TokenType::Minus, TokenType::Star, TokenType::Slash, TokenType::Percent);
 
     if (!op) {
         return std::nullopt;
@@ -148,8 +138,7 @@ auto Parser::parse_condition() -> std::optional<Condition> {
         return std::nullopt;
     }
 
-    const auto op = expect(TokenType::Equals, TokenType::BangEquals,
-                           TokenType::Greater, TokenType::Less,
+    const auto op = expect(TokenType::Equals, TokenType::BangEquals, TokenType::Greater, TokenType::Less,
                            TokenType::GreaterEquals, TokenType::LessEquals);
 
     if (!op) {
@@ -271,13 +260,11 @@ auto Parser::parse_value() -> std::optional<Value> {
         return *identifier;
     }
 
-    errors.push_back(Error{
-        .source = error_source,
-        .message =
-            std::format("Expected a number or identifier, instead found '{}'",
-                        peek()->lexeme),
-        .line = peek()->line,
-        .column = peek()->column});
+    errors.push_back(
+        Error{.source = error_source,
+              .message = std::format("Expected a number or identifier, instead found '{}'", peek()->lexeme),
+              .line = peek()->line,
+              .column = peek()->column});
 
     return std::nullopt;
 }
@@ -286,10 +273,7 @@ auto Parser::parse_command() -> std::optional<Command> {
     const auto next = peek();
 
     if (!next) {
-        errors.push_back(Error{.source = error_source,
-                               .message = "Unexpected end of file",
-                               .line = 0,
-                               .column = 0});
+        errors.push_back(Error{.source = error_source, .message = "Unexpected end of file", .line = 0, .column = 0});
 
         return std::nullopt;
     }
@@ -306,8 +290,7 @@ auto Parser::parse_command() -> std::optional<Command> {
     case TokenType::Pidentifier: {
         const auto token_after_identifier = peek(1);
 
-        if (token_after_identifier.has_value() &&
-            token_after_identifier->token_type == TokenType::Lparen)
+        if (token_after_identifier.has_value() && token_after_identifier->token_type == TokenType::Lparen)
             return parse_call();
 
         const auto assignment = parse_assignment();
@@ -315,12 +298,10 @@ auto Parser::parse_command() -> std::optional<Command> {
         if (assignment)
             return *assignment;
 
-        errors.push_back(
-            Error{.source = error_source,
-                  .message = "Expected ':=' or '(<args>)' after identifier " +
-                             next->lexeme,
-                  .line = next->line,
-                  .column = next->column});
+        errors.push_back(Error{.source = error_source,
+                               .message = "Expected ':=' or '(<args>)' after identifier " + next->lexeme,
+                               .line = next->line,
+                               .column = next->column});
 
         return std::nullopt;
     }
@@ -459,10 +440,8 @@ auto Parser::parse_procedure() -> std::optional<ast::Procedure> {
         return std::nullopt;
     }
 
-    return ast::Procedure{.name = *name,
-                          .args = args,
-                          .context = Context{.declarations = *declarations,
-                                             .commands = commands}};
+    return ast::Procedure{
+        .name = *name, .args = args, .context = Context{.declarations = *declarations, .commands = commands}};
 }
 
 auto Parser::parse_while() -> std::optional<Command> {
@@ -579,9 +558,7 @@ auto Parser::parse_if() -> std::optional<Command> {
         return std::nullopt;
     }
 
-    return ast::If{.condition = *condition,
-                   .commands = commands,
-                   .else_commands = else_commands};
+    return ast::If{.condition = *condition, .commands = commands, .else_commands = else_commands};
 }
 
 auto Parser::parse_repeat() -> std::optional<Command> {

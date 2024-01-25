@@ -10,22 +10,13 @@
 // TODO: Add tests for the remaining parser methods
 
 auto make_pidentifier(std::string name) -> Token {
-    return Token{.token_type = TokenType::Pidentifier,
-                 .lexeme = std::move(name),
-                 .line = 1,
-                 .column = 1};
+    return Token{.token_type = TokenType::Pidentifier, .lexeme = std::move(name), .line = 1, .column = 1};
 }
 
-auto make_comma() -> Token {
-    return Token{
-        .token_type = TokenType::Comma, .lexeme = ",", .line = 1, .column = 1};
-}
+auto make_comma() -> Token { return Token{.token_type = TokenType::Comma, .lexeme = ",", .line = 1, .column = 1}; }
 
 auto make_num(std::string value) -> Token {
-    return Token{.token_type = TokenType::Num,
-                 .lexeme = std::move(value),
-                 .line = 1,
-                 .column = 1};
+    return Token{.token_type = TokenType::Num, .lexeme = std::move(value), .line = 1, .column = 1};
 }
 
 auto make_num_or_pidentifier(std::string value) -> Token {
@@ -37,46 +28,25 @@ auto make_num_or_pidentifier(std::string value) -> Token {
 }
 
 auto make_lbracket() -> Token {
-    return Token{.token_type = TokenType::Lbracket,
-                 .lexeme = "[",
-                 .line = 1,
-                 .column = 1};
+    return Token{.token_type = TokenType::Lbracket, .lexeme = "[", .line = 1, .column = 1};
 }
 
 auto make_rbracket() -> Token {
-    return Token{.token_type = TokenType::Rbracket,
-                 .lexeme = "]",
-                 .line = 1,
-                 .column = 1};
+    return Token{.token_type = TokenType::Rbracket, .lexeme = "]", .line = 1, .column = 1};
 }
 
 auto make_operator(char op) -> Token {
     switch (op) {
     case '+':
-        return Token{.token_type = TokenType::Plus,
-                     .lexeme = std::string{op},
-                     .line = 1,
-                     .column = 1};
+        return Token{.token_type = TokenType::Plus, .lexeme = std::string{op}, .line = 1, .column = 1};
     case '-':
-        return Token{.token_type = TokenType::Minus,
-                     .lexeme = std::string{op},
-                     .line = 1,
-                     .column = 1};
+        return Token{.token_type = TokenType::Minus, .lexeme = std::string{op}, .line = 1, .column = 1};
     case '*':
-        return Token{.token_type = TokenType::Star,
-                     .lexeme = std::string{op},
-                     .line = 1,
-                     .column = 1};
+        return Token{.token_type = TokenType::Star, .lexeme = std::string{op}, .line = 1, .column = 1};
     case '/':
-        return Token{.token_type = TokenType::Slash,
-                     .lexeme = std::string{op},
-                     .line = 1,
-                     .column = 1};
+        return Token{.token_type = TokenType::Slash, .lexeme = std::string{op}, .line = 1, .column = 1};
     case '%':
-        return Token{.token_type = TokenType::Percent,
-                     .lexeme = std::string{op},
-                     .line = 1,
-                     .column = 1};
+        return Token{.token_type = TokenType::Percent, .lexeme = std::string{op}, .line = 1, .column = 1};
     }
     assert(false);
 }
@@ -94,8 +64,7 @@ TEST_CASE("Parser - constructor") {
 }
 
 TEST_CASE("Parser - chop") {
-    auto tokens = std::vector<Token>{make_pidentifier("n"), make_comma(),
-                                     make_pidentifier("m")};
+    auto tokens = std::vector<Token>{make_pidentifier("n"), make_comma(), make_pidentifier("m")};
     auto parser = parser::Parser(tokens);
 
     const auto n = parser.chop();
@@ -118,8 +87,7 @@ TEST_CASE("Parser - chop") {
 }
 
 TEST_CASE("Parser - match_next") {
-    auto tokens = std::vector<Token>{make_pidentifier("n"), make_comma(),
-                                     make_pidentifier("m")};
+    auto tokens = std::vector<Token>{make_pidentifier("n"), make_comma(), make_pidentifier("m")};
     auto parser = parser::Parser(tokens);
 
     CHECK(parser.match_next(TokenType::Pidentifier));
@@ -132,8 +100,7 @@ TEST_CASE("Parser - match_next") {
 }
 
 TEST_CASE("Parser - expect") {
-    auto tokens = std::vector<Token>{make_pidentifier("n"), make_comma(),
-                                     make_pidentifier("m")};
+    auto tokens = std::vector<Token>{make_pidentifier("n"), make_comma(), make_pidentifier("m")};
     auto parser = parser::Parser(tokens);
 
     const auto n = parser.expect(TokenType::Pidentifier);
@@ -168,8 +135,7 @@ TEST_CASE("Parser - parse declarations") {
     }
 
     SUBCASE("Multiple declarations") {
-        auto tokens = std::vector<Token>{make_pidentifier("n"), make_comma(),
-                                         make_pidentifier("m")};
+        auto tokens = std::vector<Token>{make_pidentifier("n"), make_comma(), make_pidentifier("m")};
         auto parser = parser::Parser(tokens);
 
         const auto declarations = parser.parse_declarations();
@@ -192,8 +158,7 @@ TEST_CASE("Parser - parse identifier") {
     }
 
     SUBCASE("Num index") {
-        auto tokens = std::vector<Token>{make_pidentifier("n"), make_lbracket(),
-                                         make_num("0"), make_rbracket()};
+        auto tokens = std::vector<Token>{make_pidentifier("n"), make_lbracket(), make_num("0"), make_rbracket()};
         auto parser = parser::Parser(tokens);
 
         const auto identifier = parser.parse_identifier();
@@ -205,8 +170,7 @@ TEST_CASE("Parser - parse identifier") {
 
     SUBCASE("Pidentifier index") {
         auto tokens =
-            std::vector<Token>{make_pidentifier("n"), make_lbracket(),
-                               make_pidentifier("m"), make_rbracket()};
+            std::vector<Token>{make_pidentifier("n"), make_lbracket(), make_pidentifier("m"), make_rbracket()};
         auto parser = parser::Parser(tokens);
 
         const auto identifier = parser.parse_identifier();
@@ -241,8 +205,7 @@ TEST_CASE("Parser - parse value") {
 
     SUBCASE("Identifier indexed by identifier") {
         auto tokens =
-            std::vector<Token>{make_pidentifier("n"), make_lbracket(),
-                               make_pidentifier("m"), make_rbracket()};
+            std::vector<Token>{make_pidentifier("n"), make_lbracket(), make_pidentifier("m"), make_rbracket()};
         auto parser = parser::Parser(tokens);
 
         const auto value = parser.parse_value();
@@ -254,8 +217,7 @@ TEST_CASE("Parser - parse value") {
     }
 
     SUBCASE("Identifier indexed by num") {
-        auto tokens = std::vector<Token>{make_pidentifier("n"), make_lbracket(),
-                                         make_num("0"), make_rbracket()};
+        auto tokens = std::vector<Token>{make_pidentifier("n"), make_lbracket(), make_num("0"), make_rbracket()};
         auto parser = parser::Parser(tokens);
 
         const auto value = parser.parse_value();
@@ -289,8 +251,7 @@ TEST_CASE("Parser - parse expression") {
 
     SUBCASE("Num Num") {
         DOCTEST_VALUE_PARAMETERIZED_DATA(op, operators);
-        auto tokens =
-            std::vector<Token>{make_num("0"), make_operator(op), make_num("1")};
+        auto tokens = std::vector<Token>{make_num("0"), make_operator(op), make_num("1")};
         auto parser = parser::Parser(tokens);
 
         const auto expression = parser.parse_expression();
@@ -304,8 +265,7 @@ TEST_CASE("Parser - parse expression") {
 
     SUBCASE("Num Identifier") {
         DOCTEST_VALUE_PARAMETERIZED_DATA(op, operators);
-        auto tokens = std::vector<Token>{make_num("0"), make_operator(op),
-                                         make_pidentifier("n")};
+        auto tokens = std::vector<Token>{make_num("0"), make_operator(op), make_pidentifier("n")};
         auto parser = parser::Parser(tokens);
 
         const auto expression = parser.parse_expression();
@@ -319,8 +279,7 @@ TEST_CASE("Parser - parse expression") {
 
     SUBCASE("Identifier Num") {
         DOCTEST_VALUE_PARAMETERIZED_DATA(op, operators);
-        auto tokens = std::vector<Token>{make_pidentifier("n"),
-                                         make_operator(op), make_num("0")};
+        auto tokens = std::vector<Token>{make_pidentifier("n"), make_operator(op), make_num("0")};
         auto parser = parser::Parser(tokens);
 
         const auto expression = parser.parse_expression();
@@ -334,8 +293,7 @@ TEST_CASE("Parser - parse expression") {
 
     SUBCASE("Identifier Identifier") {
         DOCTEST_VALUE_PARAMETERIZED_DATA(op, operators);
-        auto tokens = std::vector<Token>{
-            make_pidentifier("n"), make_operator(op), make_pidentifier("m")};
+        auto tokens = std::vector<Token>{make_pidentifier("n"), make_operator(op), make_pidentifier("m")};
         auto parser = parser::Parser(tokens);
 
         const auto expression = parser.parse_expression();

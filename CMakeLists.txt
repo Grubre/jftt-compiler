@@ -22,7 +22,7 @@ endif()
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND CMAKE_CXX_COMPILER_ID MATCHES
                                                 "GNU|Clang")
-    add_compile_options(-Wall -Wextra -Wpedantic -Wconversion)
+    add_compile_options(-Wall -Wextra -Wpedantic )
 endif()
 
 option(ENABLE_SANITIZERS "Enables AddressSanitizer and UndefinedBehaviorSanitizer." OFF)

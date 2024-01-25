@@ -131,14 +131,12 @@ struct Token {
     unsigned column;
 
     auto operator==(const Token &other) const -> bool {
-        return token_type == other.token_type && lexeme == other.lexeme &&
-               line == other.line && column == other.column;
+        return token_type == other.token_type && lexeme == other.lexeme && line == other.line && column == other.column;
     }
 };
 
 inline auto to_string(const Token &token) -> std::string {
-    auto out =
-        std::format("({}:{}, {})", token.line, token.column, token.lexeme);
+    auto out = std::format("({}:{}, {})", token.line, token.column, token.lexeme);
 
     return out;
 }
@@ -151,11 +149,8 @@ concept IdentifierVarCollection = requires(Variables variables) {
 namespace std {
 template <> struct hash<Token> {
     std::size_t operator()(const Token &token) const {
-        return ((std::hash<std::string>()(token.lexeme) ^
-                 (std::hash<unsigned>()(token.line) << 1)) >>
-                1) ^
-               (std::hash<unsigned>()(token.column) << 1) ^
-               (std::hash<int>()(static_cast<int>(token.token_type)) << 1);
+        return ((std::hash<std::string>()(token.lexeme) ^ (std::hash<unsigned>()(token.line) << 1)) >> 1) ^
+               (std::hash<unsigned>()(token.column) << 1) ^ (std::hash<int>()(static_cast<int>(token.token_type)) << 1);
     }
 };
 } // namespace std

@@ -16,26 +16,22 @@ void Emitter::emit_procedure(const ast::Procedure &procedure) {
 
     const auto entrypoint = lines.size();
 
-    procedures.emplace(procedure.name.lexeme,
-                       Procedure{entrypoint, stack_pointer, &procedure});
+    procedures.emplace(procedure.name.lexeme, Procedure{entrypoint, stack_pointer, &procedure});
 
     // we put the return address here
     const auto return_address = stack_pointer;
     stack_pointer++;
 
     for (const auto &arg : procedure.args) {
-        variables[Variable{current_source, arg.identifier.lexeme}] =
-            MemoryLocation{stack_pointer, 1, true};
+        variables[Variable{current_source, arg.identifier.lexeme}] = MemoryLocation{stack_pointer, 1, true};
         stack_pointer++;
     }
 
     assign_memory(procedure.context.declarations);
 
     // Set the return address
-    emit_line_with_comment(
-        Inc{Register::H},
-        Comment{std::format("procedure {}", procedure.signature()),
-                indent_level_main});
+    emit_line_with_comment(Inc{Register::H},
+                           Comment{std::format("procedure {}", procedure.signature()), indent_level_main});
     emit_line(Inc{Register::H});
     emit_line(Get{Register::H});
 
@@ -47,16 +43,13 @@ void Emitter::emit_procedure(const ast::Procedure &procedure) {
 
     set_mar(return_address);
     emit_line(Load{Register::B});
-    emit_line_with_comment(
-        Jumpr{Register::A},
-        Comment{std::format("return from procedure {}", procedure.signature()),
-                indent_level_middle});
+    emit_line_with_comment(Jumpr{Register::A}, Comment{std::format("return from procedure {}", procedure.signature()),
+                                                       indent_level_middle});
 }
 
 auto Emitter::get_variable(const Token &variable) -> Location * {
     if (!variables.contains({current_source, variable.lexeme})) {
-        push_error("Unknown variable " + variable.lexeme, variable.line,
-                   variable.column);
+        push_error("Unknown variable " + variable.lexeme, variable.line, variable.column);
         return nullptr;
     }
     return &variables.at({current_source, variable.lexeme});
@@ -92,14 +85,12 @@ void Emitter::set_mar(const ast::Identifier &identifier) {
 
     switch (identifier.index->token_type) {
     case Pidentifier: {
-        emit_line_with_comment(Put{Register::F},
-                               Comment{" <- backup A (1)", indent_level_sub});
+        emit_line_with_comment(Put{Register::F}, Comment{" <- backup A (1)", indent_level_sub});
         const auto &variable = get_variable(*identifier.index);
         if (!variable) {
             return;
         }
-        push_comment(Comment{"Indexing by " + identifier.index->lexeme,
-                             indent_level_sub});
+        push_comment(Comment{"Indexing by " + identifier.index->lexeme, indent_level_sub});
         set_mar(variable->address);
         if (is_pointer(*identifier.index)) {
             emit_line(Load{Register::B});
@@ -110,15 +101,12 @@ void Emitter::set_mar(const ast::Identifier &identifier) {
         emit_line(Add{Register::E});
         emit_line(Put{Register::B});
 
-        emit_line_with_comment(Get{Register::F},
-                               Comment{" <- backup A (2)", indent_level_sub});
+        emit_line_with_comment(Get{Register::F}, Comment{" <- backup A (2)", indent_level_sub});
     } break;
     case Num: {
         const auto offset = std::stoull(identifier.index->lexeme);
         if (offset > location->size) {
-            push_error(std::format("Index {}[{}] outside bounds",
-                                   identifier.name.lexeme,
-                                   identifier.index->lexeme),
+            push_error(std::format("Index {}[{}] outside bounds", identifier.name.lexeme, identifier.index->lexeme),
                        identifier.index->line, identifier.index->column);
         }
         set_register(Register::B, location->address + offset);
@@ -138,8 +126,7 @@ void Emitter::handle_pointer(const ast::Identifier &identifier) {
         return;
     }
     set_register(Register::B, location->address);
-    emit_line_with_comment(Put{Register::G},
-                           Comment{" <- pointer", indent_level_sub});
+    emit_line_with_comment(Put{Register::G}, Comment{" <- pointer", indent_level_sub});
     emit_line(Load{Register::B});
 
     if (!identifier.index.has_value()) {
@@ -180,16 +167,12 @@ void Emitter::handle_pointer(const ast::Identifier &identifier) {
 }
 
 void Emitter::set_jump_location(Instruction &instruction, uint64_t location) {
-    std::visit(overloaded{[&](Jump &jump) { jump.line = location; },
-                          [&](Jpos &jpos) { jpos.line = location; },
-                          [&](Jzero &jzero) { jzero.line = location; },
-                          [&](auto) { assert(false); }},
+    std::visit(overloaded{[&](Jump &jump) { jump.line = location; }, [&](Jpos &jpos) { jpos.line = location; },
+                          [&](Jzero &jzero) { jzero.line = location; }, [&](auto) { assert(false); }},
                instruction);
 }
 
-void Emitter::set_accumulator(uint64_t value) {
-    set_register(Register::A, value);
-}
+void Emitter::set_accumulator(uint64_t value) { set_register(Register::A, value); }
 
 void Emitter::set_accumulator(const ast::Value &value) {
     if (std::holds_alternative<ast::Num>(value)) {
@@ -230,8 +213,7 @@ void Emitter::emit_write(const ast::Value &value) {
         set_accumulator(value);
     } else {
         const auto identifier = std::get<ast::Identifier>(value);
-        push_comment(
-            Comment{"WRITE " + identifier.name.lexeme, indent_level_main});
+        push_comment(Comment{"WRITE " + identifier.name.lexeme, indent_level_main});
         set_mar(identifier);
         emit_line(Load{Register::B});
     }
@@ -255,18 +237,15 @@ void Emitter::emit_assignment(const ast::Assignment &assignment) {
     auto check_regd_geq_zero = [&](uint64_t offset) {
         const auto jump_line = lines.size();
         emit_line(Get{Register::D});
-        emit_line_with_comment(
-            Jzero{lines.size() + offset},
-            Comment{"Jump to end if reg D == 0", indent_level_sub});
+        emit_line_with_comment(Jzero{lines.size() + offset}, Comment{"Jump to end if reg D == 0", indent_level_sub});
         return jump_line;
     };
 
     const auto &binary = std::get<ast::BinaryExpression>(assignment.expression);
 
     auto gen_comment = [&](const char op) {
-        push_comment(Comment{lhs_comment + get_str(binary.lhs) + " " + op +
-                                 " " + get_str(binary.rhs),
-                             indent_level_main});
+        push_comment(
+            Comment{lhs_comment + get_str(binary.lhs) + " " + op + " " + get_str(binary.rhs), indent_level_main});
     };
 
     switch (binary.op.token_type) {
@@ -333,9 +312,7 @@ void Emitter::emit_assignment(const ast::Assignment &assignment) {
         const auto len = 21;
         // test if b = 0
         emit_line(Get{Register::D});
-        emit_line_with_comment(
-            Jzero{lines.size() + len},
-            Comment{"Jump to end if reg D == 0", indent_level_sub});
+        emit_line_with_comment(Jzero{lines.size() + len}, Comment{"Jump to end if reg D == 0", indent_level_sub});
         // endif
 
         // tmp := 1
@@ -344,8 +321,7 @@ void Emitter::emit_assignment(const ast::Assignment &assignment) {
         // while b <= a condition
         emit_line(Get{Register::D});
         emit_line(Sub{Register::C});
-        emit_line_with_comment(Jpos{lines.size() + 4},
-                               Comment{"jump if a < b", indent_level_sub});
+        emit_line_with_comment(Jpos{lines.size() + 4}, Comment{"jump if a < b", indent_level_sub});
         // tmp <<= 1, b <<= 1
         emit_line(Shl{Register::E});
         emit_line(Shl{Register::D});
@@ -357,8 +333,7 @@ void Emitter::emit_assignment(const ast::Assignment &assignment) {
         // if b <= a
         emit_line(Get{Register::D});
         emit_line(Sub{Register::C});
-        emit_line_with_comment(Jpos{lines.size() + 7},
-                               Comment{"jump if a < b", indent_level_sub});
+        emit_line_with_comment(Jpos{lines.size() + 7}, Comment{"jump if a < b", indent_level_sub});
         // p+=tmp
         emit_line(Get{Register::F});
         emit_line(Add{Register::E});
@@ -374,8 +349,7 @@ void Emitter::emit_assignment(const ast::Assignment &assignment) {
         emit_line(Shr{Register::E});
 
         emit_line(Get{Register::E});
-        emit_line_with_comment(Jpos{repeat_until_entry},
-                               Comment{"jump if a < b", indent_level_sub});
+        emit_line_with_comment(Jpos{repeat_until_entry}, Comment{"jump if a < b", indent_level_sub});
 
         emit_line(Get{Register::F});
     } break;
@@ -399,22 +373,17 @@ void Emitter::emit_assignment(const ast::Assignment &assignment) {
         const auto len = 21;
         // test if b = 0
         emit_line(Get{Register::D});
-        emit_line_with_comment(
-            Jzero{lines.size() + len},
-            Comment{"Jump to end if reg D == 0", indent_level_sub});
+        emit_line_with_comment(Jzero{lines.size() + len}, Comment{"Jump to end if reg D == 0", indent_level_sub});
         // endif
 
         // tmp := b
-        emit_line_with_comment(Get{Register::D},
-                               Comment{"tmp := b", indent_level_sub});
+        emit_line_with_comment(Get{Register::D}, Comment{"tmp := b", indent_level_sub});
         emit_line(Put{Register::E});
 
         // while b <= a condition
-        emit_line_with_comment(Get{Register::D},
-                               Comment{"check b <= a", indent_level_sub});
+        emit_line_with_comment(Get{Register::D}, Comment{"check b <= a", indent_level_sub});
         emit_line(Sub{Register::C});
-        emit_line_with_comment(Jpos{lines.size() + 3},
-                               Comment{"jump if a < b", indent_level_sub});
+        emit_line_with_comment(Jpos{lines.size() + 3}, Comment{"jump if a < b", indent_level_sub});
         // b <<= 1
         emit_line(Shl{Register::D});
         emit_line(Jump{lines.size() - 4});
@@ -423,14 +392,11 @@ void Emitter::emit_assignment(const ast::Assignment &assignment) {
         // repeat
         const auto repeat_until_entry = lines.size();
         // b >>= 1
-        emit_line_with_comment(Shr{Register::D},
-                               Comment{"b >>= 1", indent_level_sub});
+        emit_line_with_comment(Shr{Register::D}, Comment{"b >>= 1", indent_level_sub});
         // if b <= a
-        emit_line_with_comment(Get{Register::D},
-                               Comment{"Check b <= a", indent_level_sub});
+        emit_line_with_comment(Get{Register::D}, Comment{"Check b <= a", indent_level_sub});
         emit_line(Sub{Register::C});
-        emit_line_with_comment(Jpos{lines.size() + 4},
-                               Comment{"jump if a < b", indent_level_sub});
+        emit_line_with_comment(Jpos{lines.size() + 4}, Comment{"jump if a < b", indent_level_sub});
         // a -= b
         emit_line(Get{Register::C});
         emit_line(Sub{Register::D});
@@ -438,26 +404,22 @@ void Emitter::emit_assignment(const ast::Assignment &assignment) {
         // endif
 
         // while tmp <= a
-        emit_line_with_comment(Get{Register::E},
-                               Comment{"Check tmp <= a", indent_level_sub});
+        emit_line_with_comment(Get{Register::E}, Comment{"Check tmp <= a", indent_level_sub});
         emit_line(Sub{Register::C});
-        emit_line_with_comment(Jzero{repeat_until_entry},
-                               Comment{"jump if a < tmp", indent_level_sub});
+        emit_line_with_comment(Jzero{repeat_until_entry}, Comment{"jump if a < tmp", indent_level_sub});
 
         emit_line(Get{Register::C});
     }
 
     break;
     default:
-        push_error("Operator " + binary.op.lexeme + " not implemented",
-                   binary.op.line, binary.op.column);
+        push_error("Operator " + binary.op.lexeme + " not implemented", binary.op.line, binary.op.column);
     }
 
     set_memory(assignment.identifier);
 }
 
-auto Emitter::emit_condition(const ast::Condition &condition,
-                             const std::string &comment_when_false) -> Jumps {
+auto Emitter::emit_condition(const ast::Condition &condition, const std::string &comment_when_false) -> Jumps {
     auto jumps_if_false = std::vector<uint64_t>{};
     auto jumps_if_true = std::vector<uint64_t>{};
 
@@ -549,8 +511,7 @@ auto Emitter::emit_condition(const ast::Condition &condition,
         jump_if_false(Jump{0}, comment_when_false + " if ==");
         break;
     default:
-        push_error("Operator " + condition.op.lexeme + " not implemented",
-                   condition.op.line, condition.op.column);
+        push_error("Operator " + condition.op.lexeme + " not implemented", condition.op.line, condition.op.column);
     }
 
     return {jumps_if_false, jumps_if_true};
@@ -565,12 +526,9 @@ void Emitter::emit_if(const ast::If &if_statement) {
     };
 
     // Emit the condition
-    const std::string comment =
-        std::string{"Jump to "} +
-        (if_statement.else_commands.has_value() ? "else" : "endif");
+    const std::string comment = std::string{"Jump to "} + (if_statement.else_commands.has_value() ? "else" : "endif");
 
-    const auto [jumps_if_false, jumps_if_true] =
-        emit_condition(if_statement.condition, comment);
+    const auto [jumps_if_false, jumps_if_true] = emit_condition(if_statement.condition, comment);
 
     push_comment(Comment{"If statement"});
 
@@ -621,8 +579,7 @@ void Emitter::emit_repeat(const ast::Repeat &repeat) {
     // Emit the condition
     const std::string if_false_comment = "Jump to repeat end";
 
-    const auto [jumps_if_false, jumps_if_true] =
-        emit_condition(repeat.condition, if_false_comment);
+    const auto [jumps_if_false, jumps_if_true] = emit_condition(repeat.condition, if_false_comment);
 
     const auto body_end = lines.size();
 
@@ -636,10 +593,8 @@ void Emitter::emit_repeat(const ast::Repeat &repeat) {
 }
 
 void Emitter::emit_while(const ast::While &while_statement) {
-    const auto condition_str =
-        std::format("while {} {} {}", get_str(while_statement.condition.lhs),
-                    while_statement.condition.op.lexeme,
-                    get_str(while_statement.condition.rhs));
+    const auto condition_str = std::format("while {} {} {}", get_str(while_statement.condition.lhs),
+                                           while_statement.condition.op.lexeme, get_str(while_statement.condition.rhs));
     push_comment(Comment{condition_str, indent_level_main});
 
     // Emit the condition
@@ -647,8 +602,7 @@ void Emitter::emit_while(const ast::While &while_statement) {
 
     const auto condition_start = lines.size();
 
-    const auto [jumps_if_false, jumps_if_true] =
-        emit_condition(while_statement.condition, if_false_comment);
+    const auto [jumps_if_false, jumps_if_true] = emit_condition(while_statement.condition, if_false_comment);
 
     const auto body_start = lines.size();
 
@@ -656,8 +610,7 @@ void Emitter::emit_while(const ast::While &while_statement) {
         emit_command(command);
     }
 
-    emit_line_with_comment(Jump{condition_start},
-                           Comment{"Jump to condition", indent_level_sub});
+    emit_line_with_comment(Jump{condition_start}, Comment{"Jump to condition", indent_level_sub});
 
     const auto body_end = lines.size();
 
@@ -676,17 +629,14 @@ void Emitter::emit_call(const ast::Call &call) {
     push_comment(Comment{"Call " + call.name.lexeme});
 
     if (!procedures.contains(call.name.lexeme)) {
-        push_error("Procedure " + call.name.lexeme + " not found",
-                   call.name.line, call.name.column);
+        push_error("Procedure " + call.name.lexeme + " not found", call.name.line, call.name.column);
     }
 
     if (num_args != procedures[call.name.lexeme].procedure->args.size()) {
-        push_error(
-            "Procedure " + call.name.lexeme + " expected " +
-                std::to_string(
-                    procedures[call.name.lexeme].procedure->args.size()) +
-                " arguments but got " + std::to_string(num_args),
-            call.name.line, call.name.column);
+        push_error("Procedure " + call.name.lexeme + " expected " +
+                       std::to_string(procedures[call.name.lexeme].procedure->args.size()) + " arguments but got " +
+                       std::to_string(num_args),
+                   call.name.line, call.name.column);
     }
 
     const auto previous_source = current_source;
@@ -702,32 +652,23 @@ void Emitter::emit_call(const ast::Call &call) {
     for (auto i = 0u; i < num_args; i++) {
         // Check if variable exists
         if (!variables.contains({previous_source, call.args[i].lexeme})) {
-            push_error("Variable " + call.args[i].lexeme + " not found",
-                       call.name.line, call.name.column);
+            push_error("Variable " + call.args[i].lexeme + " not found", call.name.line, call.name.column);
         }
 
-        const auto variable_mem_location =
-            variables.at({previous_source, call.args[i].lexeme});
+        const auto variable_mem_location = variables.at({previous_source, call.args[i].lexeme});
 
-        if (!variable_mem_location.is_pointer &&
-            variable_mem_location.size == 1 && procedure->args[i].is_array) {
-            push_error(
-                std::format("Procedure {} expected argument '{}' to be an "
-                            "array, but the passed argument '{}' is not",
-                            procedure->signature(),
-                            procedure->args[i].identifier.lexeme,
-                            call.args[i].lexeme),
-                call.args[i].line, call.args[i].column);
+        if (!variable_mem_location.is_pointer && variable_mem_location.size == 1 && procedure->args[i].is_array) {
+            push_error(std::format("Procedure {} expected argument '{}' to be an "
+                                   "array, but the passed argument '{}' is not",
+                                   procedure->signature(), procedure->args[i].identifier.lexeme, call.args[i].lexeme),
+                       call.args[i].line, call.args[i].column);
         }
 
         if (variable_mem_location.size > 1 && !procedure->args[i].is_array) {
-            push_error(
-                std::format("Procedure {} expected argument '{}' to be a "
-                            "variable but the passed argument '{}' is an array",
-                            procedure->signature(),
-                            procedure->args[i].identifier.lexeme,
-                            call.args[i].lexeme),
-                call.args[i].line, call.args[i].column);
+            push_error(std::format("Procedure {} expected argument '{}' to be a "
+                                   "variable but the passed argument '{}' is an array",
+                                   procedure->signature(), procedure->args[i].identifier.lexeme, call.args[i].lexeme),
+                       call.args[i].line, call.args[i].column);
         }
 
         if (variables.at({previous_source, call.args[i].lexeme}).is_pointer) {
@@ -741,22 +682,17 @@ void Emitter::emit_call(const ast::Call &call) {
         emit_line(Inc{Register::G});
     }
 
-    emit_line_with_comment(Strk{Register::H},
-                           Comment{"Save return address", indent_level_middle});
-    emit_line_with_comment(
-        Jump{procedures[call.name.lexeme].entrypoint},
-        Comment{"Jump to procedure " + call.name.lexeme, indent_level_sub});
+    emit_line_with_comment(Strk{Register::H}, Comment{"Save return address", indent_level_middle});
+    emit_line_with_comment(Jump{procedures[call.name.lexeme].entrypoint},
+                           Comment{"Jump to procedure " + call.name.lexeme, indent_level_sub});
 
     current_source = previous_source;
 }
 
 void Emitter::set_register(Register reg, uint64_t value) {
-    const auto register_str =
-        reg == Register::B ? "MAR(reg B)" : "Reg " + to_string(reg);
+    const auto register_str = reg == Register::B ? "MAR(reg B)" : "Reg " + to_string(reg);
 
-    emit_line_with_comment(
-        Rst{reg}, Comment{register_str + " <- " + std::to_string(value),
-                          indent_level_sub});
+    emit_line_with_comment(Rst{reg}, Comment{register_str + " <- " + std::to_string(value), indent_level_sub});
 
     if (value == 0) {
         return;
@@ -803,39 +739,28 @@ void Emitter::set_register(Register reg, const ast::Value &value) {
 // First 8 memory cells are for register backups
 void Emitter::backup_register(Register reg) {
     const auto memory_offset = static_cast<uint64_t>(reg);
-    emit_line_with_comment(
-        Load{reg},
-        Comment{"Backup register " + to_string(reg), indent_level_sub});
+    emit_line_with_comment(Load{reg}, Comment{"Backup register " + to_string(reg), indent_level_sub});
     set_register(Register::B, memory_offset);
     emit_line(Store{Register::B});
 }
 
 void Emitter::assign_memory(const std::vector<ast::Declaration> &declarations) {
     for (const auto &declaration : declarations) {
-        const auto size = declaration.array_size.has_value()
-                              ? std::stoull(declaration.array_size->lexeme)
-                              : 1;
-        variables[{current_source, declaration.identifier.lexeme}] =
-            MemoryLocation{stack_pointer, size};
+        const auto size = declaration.array_size.has_value() ? std::stoull(declaration.array_size->lexeme) : 1;
+        variables[{current_source, declaration.identifier.lexeme}] = MemoryLocation{stack_pointer, size};
         stack_pointer += size;
     }
 }
 
 void Emitter::emit_command(const ast::Command &command) {
-    std::visit(
-        overloaded{[&](const ast::Read &read) { emit_read(read.identifier); },
-                   [&](const ast::Write &write) { emit_write(write.value); },
-                   [&](const ast::If &if_statement) { emit_if(if_statement); },
-                   [&](const ast::Repeat &repeat) { emit_repeat(repeat); },
-                   [&](const ast::Assignment &assignment) {
-                       emit_assignment(assignment);
-                   },
-                   [&](const ast::While &while_statement) {
-                       emit_while(while_statement);
-                   },
-                   [&](const ast::Call &call) { emit_call(call); },
-                   [&](auto) { assert(false); }},
-        command);
+    std::visit(overloaded{[&](const ast::Read &read) { emit_read(read.identifier); },
+                          [&](const ast::Write &write) { emit_write(write.value); },
+                          [&](const ast::If &if_statement) { emit_if(if_statement); },
+                          [&](const ast::Repeat &repeat) { emit_repeat(repeat); },
+                          [&](const ast::Assignment &assignment) { emit_assignment(assignment); },
+                          [&](const ast::While &while_statement) { emit_while(while_statement); },
+                          [&](const ast::Call &call) { emit_call(call); }, [&](auto) { assert(false); }},
+               command);
 }
 
 void Emitter::emit() {
@@ -865,12 +790,9 @@ void Emitter::emit_line(const Instruction &instruction) {
     }
     lines.push_back(Line{instruction, comment});
 }
-void Emitter::push_comment(const Comment &comment) {
-    comments.push_back(comment);
-}
+void Emitter::push_comment(const Comment &comment) { comments.push_back(comment); }
 
-void Emitter::push_error(const std::string &message, unsigned line,
-                         unsigned column) {
+void Emitter::push_error(const std::string &message, unsigned line, unsigned column) {
     errors.push_back(Error{
         .source = error_source,
         .message = message,
@@ -879,8 +801,7 @@ void Emitter::push_error(const std::string &message, unsigned line,
     });
 }
 
-void Emitter::emit_line_with_comment(const Instruction &instruction,
-                                     const Comment &comment) {
+void Emitter::emit_line_with_comment(const Instruction &instruction, const Comment &comment) {
     if (!comments.empty()) {
         lines.push_back(Line{instruction, comments.front().get_str()});
         comments.pop_front();

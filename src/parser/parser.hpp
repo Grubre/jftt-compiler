@@ -23,10 +23,8 @@ class Parser {
     auto chop() -> std::optional<Token>;
     auto match_and_chop(TokenType type) -> std::optional<Token>;
     auto peek(uint64_t offset = 0) -> std::optional<Token>;
-    template <typename... TokenTypes>
-    auto match_next(TokenTypes... expected) -> bool;
-    template <typename... TokenTypes>
-    auto expect(TokenTypes... types) -> std::optional<Token>;
+    template <typename... TokenTypes> auto match_next(TokenTypes... expected) -> bool;
+    template <typename... TokenTypes> auto expect(TokenTypes... types) -> std::optional<Token>;
     auto parse_declarations() -> std::optional<std::vector<ast::Declaration>>;
     auto parse_command() -> std::optional<ast::Command>;
     auto parse_context() -> std::optional<ast::Context>;

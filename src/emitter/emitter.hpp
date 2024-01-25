@@ -13,9 +13,7 @@ struct Variable {
     std::string source;
     std::string name;
 
-    bool operator==(const Variable &other) const {
-        return source == other.source && name == other.name;
-    }
+    bool operator==(const Variable &other) const { return source == other.source && name == other.name; }
 };
 
 } // namespace emitter
@@ -63,8 +61,7 @@ class Emitter {
     Emitter(ast::Program &&program) : program(std::move(program)) {
         // The first jump jumps to the main procedure but we don't know where
         // that is yet so we just put a placeholder address here (0)
-        lines.push_back(
-            instruction::Line{instruction::Jump{0}, "Jump to main"});
+        lines.push_back(instruction::Line{instruction::Jump{0}, "Jump to main"});
 
         registers.push(instruction::Register::C);
         registers.push(instruction::Register::D);
@@ -78,8 +75,7 @@ class Emitter {
     void emit_procedure(const ast::Procedure &procedure);
 
     void emit_comment(const instruction::Comment &comment);
-    auto emit_condition(const ast::Condition &condition,
-                        const std::string &comment_when_false) -> Jumps;
+    auto emit_condition(const ast::Condition &condition, const std::string &comment_when_false) -> Jumps;
 
     void emit_command(const ast::Command &command);
     void emit_read(const ast::Identifier &identifier);
@@ -104,20 +100,16 @@ class Emitter {
     void handle_pointer(const ast::Identifier &identifier);
     void set_memory(uint64_t value);
     void set_memory(const ast::Identifier &identifier);
-    void set_jump_location(instruction::Instruction &instruction,
-                           uint64_t location);
+    void set_jump_location(instruction::Instruction &instruction, uint64_t location);
 
     void emit_line(const instruction::Instruction &instruction);
-    void emit_line_with_comment(const instruction::Instruction &instruction,
-                                const instruction::Comment &comment);
+    void emit_line_with_comment(const instruction::Instruction &instruction, const instruction::Comment &comment);
     void push_comment(const instruction::Comment &comment);
     void push_error(const std::string &message, unsigned line, unsigned column);
 
     bool is_pointer(const Token &variable);
 
-    auto get_lines() const -> const std::vector<instruction::Line> & {
-        return lines;
-    }
+    auto get_lines() const -> const std::vector<instruction::Line> & { return lines; }
     auto get_errors() const -> const std::vector<Error> & { return errors; }
 
   private:

@@ -26,8 +26,7 @@ class ReadHandlerStdin : public ReadHandler {
 
 class ReadHandlerDeque : public ReadHandler {
   public:
-    ReadHandlerDeque(std::deque<uint64_t> input_values)
-        : input_values(std::move(input_values)) {}
+    ReadHandlerDeque(std::deque<uint64_t> input_values) : input_values(std::move(input_values)) {}
 
     auto get_next_input() -> uint64_t override;
 
@@ -42,9 +41,7 @@ template <typename T> class WriteHandler {
 
 template <typename T> class WriteHandlerStdout : public WriteHandler<T> {
   public:
-    void handle_output(T output) override {
-        std::cout << "> " << output << std::endl;
-    }
+    void handle_output(T output) override { std::cout << "> " << output << std::endl; }
 };
 
 template <typename T> class WriteHandlerVector : public WriteHandler<T> {
@@ -57,6 +54,5 @@ template <typename T> class WriteHandlerVector : public WriteHandler<T> {
     std::vector<T> outputs;
 };
 
-ProgramState<long long> run_machine(const std::vector<instruction::Line> &lines,
-                                    ReadHandler *read_handler,
+ProgramState<long long> run_machine(const std::vector<instruction::Line> &lines, ReadHandler *read_handler,
                                     WriteHandler<uint64_t> *write_handler);

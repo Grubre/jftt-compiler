@@ -38,8 +38,7 @@ auto Lexer::newline() -> void {
     column_number = 1;
 }
 
-auto Lexer::make_token(TokenType token_type, std::string lexeme,
-                       unsigned int column) -> Token {
+auto Lexer::make_token(TokenType token_type, std::string lexeme, unsigned int column) -> Token {
     return Token{token_type, lexeme, line_number, column};
 }
 
@@ -116,8 +115,7 @@ auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
     }
 
     if (is_lowercase_alphabetic(c) || c == '_') {
-        auto lexeme = chop_while(
-            [](char c) { return is_lowercase_alphabetic(c) || c == '_'; });
+        auto lexeme = chop_while([](char c) { return is_lowercase_alphabetic(c) || c == '_'; });
         return make_token(TokenType::Pidentifier, lexeme, first_char_column);
     }
 
@@ -129,8 +127,7 @@ auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
             return make_token(keyword->second, lexeme, first_char_column);
         } else {
             return tl::unexpected(
-                Error{"Lexer", std::format("Unknown keyword '{}'", lexeme),
-                      line_number, column_number});
+                Error{"Lexer", std::format("Unknown keyword '{}'", lexeme), line_number, column_number});
         };
     }
 
@@ -149,26 +146,21 @@ auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
         return make_token(TokenType::Equals, chop(1), first_char_column);
     case '!':
         if (peek() == '=') {
-            return make_token(TokenType::BangEquals, chop(2),
-                              first_char_column);
+            return make_token(TokenType::BangEquals, chop(2), first_char_column);
         } else {
-            return tl::unexpected(Error{
-                "Lexer",
-                std::format("Unexpected character: Expected '!=', found '!{}'",
-                            chop(1)),
-                line_number, column_number});
+            return tl::unexpected(Error{"Lexer",
+                                        std::format("Unexpected character: Expected '!=', found '!{}'", chop(1)),
+                                        line_number, column_number});
         }
     case '>':
         if (peek() == '=') {
-            return make_token(TokenType::GreaterEquals, chop(2),
-                              first_char_column);
+            return make_token(TokenType::GreaterEquals, chop(2), first_char_column);
         } else {
             return make_token(TokenType::Greater, chop(1), first_char_column);
         }
     case '<':
         if (peek() == '=') {
-            return make_token(TokenType::LessEquals, chop(2),
-                              first_char_column);
+            return make_token(TokenType::LessEquals, chop(2), first_char_column);
         } else {
             return make_token(TokenType::Less, chop(1), first_char_column);
         }
@@ -184,11 +176,9 @@ auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
         if (peek() == '=') {
             return make_token(TokenType::Walrus, chop(2), first_char_column);
         } else {
-            return tl::unexpected(Error{
-                "Lexer",
-                std::format("Unexpected character: Expected ':=', found ':{}'",
-                            chop(1)),
-                line_number, column_number});
+            return tl::unexpected(Error{"Lexer",
+                                        std::format("Unexpected character: Expected ':=', found ':{}'", chop(1)),
+                                        line_number, column_number});
         }
     case ';':
         return make_token(TokenType::Semicolon, chop(1), first_char_column);
@@ -197,7 +187,5 @@ auto Lexer::next_token() -> std::optional<tl::expected<Token, Error>> {
     }
 
     chop(1);
-    return tl::unexpected(Error{"Lexer",
-                                std::format("Unexpected character '{}'", c),
-                                line_number, column_number});
+    return tl::unexpected(Error{"Lexer", std::format("Unexpected character '{}'", c), line_number, column_number});
 }

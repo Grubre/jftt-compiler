@@ -43,8 +43,7 @@ template <typename T> auto number_len(T number) -> int {
 
 class LinesDisplay : public ComponentBase {
   public:
-    LinesDisplay(std::vector<std::string> instruction)
-        : lines(std::move(instruction)) {}
+    LinesDisplay(std::vector<std::string> instruction) : lines(std::move(instruction)) {}
 
     Element Render() final {
         Elements elements;
@@ -53,18 +52,14 @@ class LinesDisplay : public ComponentBase {
 
         auto line_number = 0;
         for (const auto &line : lines) {
-            const auto breakpoint = breakpoints.contains(line_number)
-                                        ? std::wstring{L"●"}
-                                        : std::wstring{L" "};
+            const auto breakpoint = breakpoints.contains(line_number) ? std::wstring{L"●"} : std::wstring{L" "};
             const auto line_number_str = std::to_wstring(line_number);
-            const auto style =
-                line_number == selected_line ? inverted : nothing;
-            const auto line_with_number = hbox(
-                {text(breakpoint) | size(WIDTH, Constraint::EQUAL, 2) |
-                     color(Color::Red),
-                 text(line_number_str) | color(Color::GrayDark) | align_right |
-                     bold | size(WIDTH, Constraint::EQUAL, max_line_number_len),
-                 separator(), text(line) | style});
+            const auto style = line_number == selected_line ? inverted : nothing;
+            const auto line_with_number =
+                hbox({text(breakpoint) | size(WIDTH, Constraint::EQUAL, 2) | color(Color::Red),
+                      text(line_number_str) | color(Color::GrayDark) | align_right | bold |
+                          size(WIDTH, Constraint::EQUAL, max_line_number_len),
+                      separator(), text(line) | style});
             elements.push_back(line_with_number);
             line_number++;
         }
@@ -80,14 +75,9 @@ class LinesDisplay : public ComponentBase {
         }
     }
 
-    auto get_breakpoints() const
-        -> const std::unordered_map<long long, bool> & {
-        return breakpoints;
-    }
+    auto get_breakpoints() const -> const std::unordered_map<long long, bool> & { return breakpoints; }
 
-    auto is_breakpoint(long long line) -> bool {
-        return breakpoints.contains(line);
-    }
+    auto is_breakpoint(long long line) -> bool { return breakpoints.contains(line); }
 
     void select_line(long long line) { selected_line = line; }
     void update_scroll(long long scroll) { scrolled = scroll; }
@@ -129,33 +119,27 @@ class RegisterDisplay : public ComponentBase {
         char reg_name = 'a';
         for (auto i = 0u; i < 8u; i++) {
             const auto reg_value_wstr = std::to_wstring(registers[i]);
-            const auto value_color =
-                registers_changed[i] ? updated_text_color : value_text_color;
+            const auto value_color = registers_changed[i] ? updated_text_color : value_text_color;
             const auto reg = hbox({
-                text(std::string{reg_name}) | size(WIDTH, EQUAL, 3) |
-                    color(Color::Red),
+                text(std::string{reg_name}) | size(WIDTH, EQUAL, 3) | color(Color::Red),
                 text(reg_value_wstr) | color(value_color) | bold,
             });
             elements.push_back(reg);
             reg_name++;
         }
 
-        const auto lr_value_color =
-            lr_changed ? updated_text_color : value_text_color;
+        const auto lr_value_color = lr_changed ? updated_text_color : value_text_color;
         const auto lr_wstr = std::to_wstring(lr);
-        const auto lr_element =
-            hbox({text(std::string{"lr"}) | size(WIDTH, EQUAL, 3) |
-                      color(Color::Red),
-                  text(lr_wstr) | color(lr_value_color) | bold
+        const auto lr_element = hbox({text(std::string{"lr"}) | size(WIDTH, EQUAL, 3) | color(Color::Red),
+                                      text(lr_wstr) | color(lr_value_color) | bold
 
-            });
+        });
         elements.push_back(lr_element);
 
         return vbox(std::move(elements));
     }
 
-    void update_registers(const std::array<long long, 8> &registers,
-                          long long lr) {
+    void update_registers(const std::array<long long, 8> &registers, long long lr) {
         for (auto i = 0u; i < 8u; i++) {
             registers_changed[i] = registers[i] != this->registers[i];
             this->registers[i] = registers[i];
@@ -180,8 +164,7 @@ class ScrollerBase : public ComponentBase {
 
     void jump(long long line) {
         scrolled = (int)line;
-        scrolled = std::max(box_.y_max / 2 - 1,
-                            std::min(size_ - (box_.y_max / 2) - 1, scrolled));
+        scrolled = std::max(box_.y_max / 2 - 1, std::min(size_ - (box_.y_max / 2) - 1, scrolled));
 
         update_child_scroll(scrolled - box_.y_max / 2 - 1);
     }
@@ -204,9 +187,7 @@ class ScrollerBase : public ComponentBase {
     }
 
     bool OnEvent(Event event) final {
-        if ((event.is_mouse() &&
-                box_.Contain(event.mouse().x, event.mouse().y)) ||
-            !event.is_mouse())
+        if ((event.is_mouse() && box_.Contain(event.mouse().x, event.mouse().y)) || !event.is_mouse())
             ComponentBase::OnEvent(event);
 
         if (event.is_mouse() && box_.Contain(event.mouse().x, event.mouse().y))
@@ -225,8 +206,7 @@ class ScrollerBase : public ComponentBase {
             (event.is_mouse() && event.mouse().button == Mouse::WheelUp)) {
             scrolled -= coeff;
         }
-        if ((event == Event::Character(ctrlj) ||
-             event == Event::ArrowDownCtrl ||
+        if ((event == Event::Character(ctrlj) || event == Event::ArrowDownCtrl ||
              (event.is_mouse() && event.mouse().button == Mouse::WheelDown))) {
             scrolled += coeff;
         }
@@ -239,8 +219,7 @@ class ScrollerBase : public ComponentBase {
         if (false)
             scrolled = size_;
 
-        scrolled = std::max(box_.y_max / 2 - 1,
-                            std::min(size_ - (box_.y_max / 2) - 1, scrolled));
+        scrolled = std::max(box_.y_max / 2 - 1, std::min(size_ - (box_.y_max / 2) - 1, scrolled));
 
         update_child_scroll(scrolled - box_.y_max / 2 - 1);
 
@@ -256,8 +235,7 @@ class ScrollerBase : public ComponentBase {
     Box box_;
 };
 
-Component Scroller(Component child,
-                   std::function<void(int)> update_child_scroll) {
+Component Scroller(Component child, std::function<void(int)> update_child_scroll) {
     return Make<ScrollerBase>(std::move(child), update_child_scroll);
 }
 
@@ -276,8 +254,7 @@ class MemoryDisplay : public ComponentBase {
             const auto address_wstr = std::to_wstring(address);
             const auto value_wstr = std::to_wstring(value);
             const auto memory_element = hbox({
-                text(address_wstr) | color(Color::Red) | bold |
-                    size(WIDTH, EQUAL, max_address_len + 2),
+                text(address_wstr) | color(Color::Red) | bold | size(WIDTH, EQUAL, max_address_len + 2),
                 text(value_wstr) | color(value_text_color),
             });
             elements.push_back(memory_element);
@@ -299,8 +276,7 @@ class MemoryDisplay : public ComponentBase {
     std::map<long long, long long> *pam = nullptr;
 };
 
-auto read_files(const std::filesystem::path &filepath)
-    -> std::optional<std::vector<std::string>> {
+auto read_files(const std::filesystem::path &filepath) -> std::optional<std::vector<std::string>> {
     auto file = std::ifstream{filepath};
     auto lines = std::vector<std::string>{};
 
@@ -317,8 +293,7 @@ auto read_files(const std::filesystem::path &filepath)
 
 void format(std::vector<std::string> &lines) {
     for (auto &line : lines) {
-        for (auto i = line.find('\t'); i != std::string::npos;
-             i = line.find('\t')) {
+        for (auto i = line.find('\t'); i != std::string::npos; i = line.find('\t')) {
             line.replace(i, 1, "    ");
         }
     }
@@ -333,8 +308,7 @@ int main(int argc, char **argv) {
     auto lines = read_files(argv[1]);
 
     if (!lines) {
-        std::cout << std::format("Error: File '{}' not found", argv[1])
-                  << std::endl;
+        std::cout << std::format("Error: File '{}' not found", argv[1]) << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -353,27 +327,19 @@ int main(int argc, char **argv) {
     const auto memory_scroller = Scroller(memory_display, [](int) {});
 
     const auto memory_renderer = Renderer(memory_scroller, [&] {
-        const auto title_color = memory_scroller->Focused()
-                                     ? title_text_color_focused
-                                     : title_text_color;
-        return vbox({text(L"Memory") | bold | color(title_color), separator(),
-                     memory_scroller->Render()});
+        const auto title_color = memory_scroller->Focused() ? title_text_color_focused : title_text_color;
+        return vbox({text(L"Memory") | bold | color(title_color), separator(), memory_scroller->Render()});
     });
 
     // LINES DISPLAY
     const auto lines_display = Make<LinesDisplay>(*lines);
 
-    const auto update_lines_renderer_scroll = [&](int scrolled) {
-        lines_display->update_scroll(scrolled);
-    };
+    const auto update_lines_renderer_scroll = [&](int scrolled) { lines_display->update_scroll(scrolled); };
 
-    const auto line_scroller =
-        Scroller(lines_display, update_lines_renderer_scroll);
+    const auto line_scroller = Scroller(lines_display, update_lines_renderer_scroll);
 
     const auto line_scroller_ui = Renderer(line_scroller, [&] {
-        const auto title_color = line_scroller->Focused()
-                                     ? title_text_color_focused
-                                     : title_text_color;
+        const auto title_color = line_scroller->Focused() ? title_text_color_focused : title_text_color;
         return vbox({
             text(L"Instructions") | bold | color(title_color),
             separator(),
@@ -389,19 +355,16 @@ int main(int argc, char **argv) {
 
     const auto breakpoints_ui = Renderer([&] {
         Elements elements;
-        elements.push_back(text(L"Breakpoints") | bold |
-                           color(title_text_color));
+        elements.push_back(text(L"Breakpoints") | bold | color(title_text_color));
         elements.push_back(separator());
         for (const auto &[breakpoint, _] : lines_display->get_breakpoints()) {
-            elements.push_back(
-                text(std::wstring{L"● "} + std::to_wstring(breakpoint)));
+            elements.push_back(text(std::wstring{L"● "} + std::to_wstring(breakpoint)));
         }
         return vbox(std::move(elements));
     });
 
     const auto state_ui = Renderer(memory_renderer, [&] {
-        return hbox({register_display->Render() | xflex, separator(),
-                     memory_renderer->Render() | xflex, separator(),
+        return hbox({register_display->Render() | xflex, separator(), memory_renderer->Render() | xflex, separator(),
                      breakpoints_ui->Render() | xflex});
     });
 
@@ -455,9 +418,7 @@ int main(int argc, char **argv) {
     });
 
     const auto console_ui = Renderer(console_input, [&] {
-        const auto title_color = console_input->Focused()
-                                     ? title_text_color_focused
-                                     : title_text_color;
+        const auto title_color = console_input->Focused() ? title_text_color_focused : title_text_color;
         return vbox({
             text(L"Console") | bold | color(title_color),
             separator(),
@@ -513,9 +474,8 @@ int main(int argc, char **argv) {
     // MAIN RENDERER
     const auto main_renderer = Renderer(ui_container, [&] {
         return hbox({line_scroller_ui->Render() | xflex_grow, separator(),
-                     vbox({state_ui->Render() | size(HEIGHT, LESS_THAN, 20) |
-                               xflex_grow,
-                           separator(), io_ui->Render() | yflex_grow}) |
+                     vbox({state_ui->Render() | size(HEIGHT, LESS_THAN, 20) | xflex_grow, separator(),
+                           io_ui->Render() | yflex_grow}) |
                          xflex});
     });
 
@@ -557,8 +517,7 @@ int main(int argc, char **argv) {
                 step();
             StateCode code = StateCode::RUNNING;
             while (!lines_display->is_breakpoint(vm.lr) &&
-                   (code == StateCode::RUNNING ||
-                    code == StateCode::PENDING_OUTPUT)) {
+                   (code == StateCode::RUNNING || code == StateCode::PENDING_OUTPUT)) {
                 code = vm.process_next_instruction();
                 if (code == StateCode::PENDING_OUTPUT)
                     push_output(vm.get_output());

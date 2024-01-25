@@ -15,8 +15,7 @@ auto load_file(const std::string &filepath) -> std::string {
     const auto file = std::ifstream(filepath);
 
     if (!file) {
-        std::cerr << "Error: File " << std::quoted(filepath) << " not found."
-                  << std::endl;
+        std::cerr << "Error: File " << std::quoted(filepath) << " not found." << std::endl;
         exit(1);
     }
 
@@ -42,9 +41,7 @@ void display_errors(const ThrowsError auto &collection) {
 
 auto parse_cmdline_args(int argc, char **argv) -> CmdlineArgs {
     if (argc < 2) {
-        std::cerr << "Usage: " + std::string{argv[0]} +
-                         " <input_file> [output_file]"
-                  << std::endl;
+        std::cerr << "Usage: " + std::string{argv[0]} + " <input_file> [output_file]" << std::endl;
         exit(1);
     }
 
@@ -124,8 +121,7 @@ auto main(int argc, char **argv) -> int {
     auto read_handler = std::make_unique<ReadHandlerStdin>();
     auto write_handler = std::make_unique<WriteHandlerStdout<cln::cl_I>>();
 
-    const auto state = run_machine(emitter.get_lines(), read_handler.get(),
-                                   write_handler.get());
+    const auto state = run_machine(emitter.get_lines(), read_handler.get(), write_handler.get());
 
     return 0;
 }

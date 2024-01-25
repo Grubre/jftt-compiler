@@ -87,7 +87,7 @@ struct Call {
         return result + ")";
     }
 
-    auto arity() const -> int { return args.size(); }
+    auto arity() const -> unsigned long { return args.size(); }
 };
 
 struct If;
@@ -147,7 +147,7 @@ struct Procedure {
         return result + ")";
     }
 
-    auto arity() const -> int { return args.size(); }
+    auto arity() const -> unsigned long { return args.size(); }
 };
 
 struct Program {

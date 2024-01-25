@@ -5,24 +5,20 @@
 #include "token.hpp"
 #include <array>
 
-constexpr std::array keywords = {"PROCEDURE", "IS", "IN",    "WHILE",
-                                 "ENDWHILE",  "IF", "ENDIF", "THEN",
-                                 "ELSE",      "DO", "READ",  "WRITE"};
+constexpr std::array keywords = {"PROCEDURE", "IS",   "IN",   "WHILE", "ENDWHILE", "IF",
+                                 "ENDIF",     "THEN", "ELSE", "DO",    "READ",     "WRITE"};
 
 TEST_CASE("Lexer - keywords") {
-    constexpr std::array expected_types = {
-        TokenType::Procedure, TokenType::Is,       TokenType::In,
-        TokenType::While,     TokenType::EndWhile, TokenType::If,
-        TokenType::EndIf,     TokenType::Then,     TokenType::Else,
-        TokenType::Do,        TokenType::Read,     TokenType::Write};
+    constexpr std::array expected_types = {TokenType::Procedure, TokenType::Is, TokenType::In,    TokenType::While,
+                                           TokenType::EndWhile,  TokenType::If, TokenType::EndIf, TokenType::Then,
+                                           TokenType::Else,      TokenType::Do, TokenType::Read,  TokenType::Write};
 
     for (auto &keyword : keywords) {
         auto lexer = Lexer(keyword);
         auto token = lexer.next_token();
         CHECK(token.has_value());
         CHECK(token->has_value());
-        CHECK(token->value().token_type ==
-              expected_types[&keyword - &keywords[0]]);
+        CHECK(token->value().token_type == expected_types[&keyword - &keywords[0]]);
         CHECK(token->value().lexeme == keyword);
     }
 }
@@ -87,14 +83,11 @@ TEST_CASE("Lexer - numbers") {
 
 TEST_CASE("Lexer - single character tokens") {
     constexpr std::array expected_types = {
-        TokenType::Plus,      TokenType::Minus,    TokenType::Star,
-        TokenType::Slash,     TokenType::Percent,  TokenType::Equals,
-        TokenType::Greater,   TokenType::Less,     TokenType::Lparen,
-        TokenType::Rparen,    TokenType::Lbracket, TokenType::Rbracket,
-        TokenType::Semicolon, TokenType::Comma};
+        TokenType::Plus,     TokenType::Minus,    TokenType::Star,      TokenType::Slash,  TokenType::Percent,
+        TokenType::Equals,   TokenType::Greater,  TokenType::Less,      TokenType::Lparen, TokenType::Rparen,
+        TokenType::Lbracket, TokenType::Rbracket, TokenType::Semicolon, TokenType::Comma};
 
-    constexpr std::array chars = {'+', '-', '*', '/', '%', '=', '>',
-                                  '<', '(', ')', '[', ']', ';', ','};
+    constexpr std::array chars = {'+', '-', '*', '/', '%', '=', '>', '<', '(', ')', '[', ']', ';', ','};
 
     for (auto i = 0u; i < chars.size(); i++) {
         const auto c = chars[i];
@@ -107,9 +100,8 @@ TEST_CASE("Lexer - single character tokens") {
 }
 
 TEST_CASE("Lexer - double character tokens") {
-    constexpr std::array expected_types = {
-        TokenType::BangEquals, TokenType::GreaterEquals, TokenType::LessEquals,
-        TokenType::Walrus};
+    constexpr std::array expected_types = {TokenType::BangEquals, TokenType::GreaterEquals, TokenType::LessEquals,
+                                           TokenType::Walrus};
 
     constexpr std::array chars = {'!', '>', '<', ':'};
 

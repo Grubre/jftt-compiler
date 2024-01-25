@@ -8,8 +8,7 @@
 
 auto split(std::string const &input) -> std::vector<std::string> {
     std::istringstream buffer(input);
-    std::vector<std::string> ret((std::istream_iterator<std::string>(buffer)),
-                                 std::istream_iterator<std::string>());
+    std::vector<std::string> ret((std::istream_iterator<std::string>(buffer)), std::istream_iterator<std::string>());
     return ret;
 }
 
@@ -20,8 +19,7 @@ auto skip_whitespace(const std::string &str) -> std::size_t {
     return i;
 }
 
-auto parse_lines(const std::vector<std::string> &lines)
-    -> std::vector<instruction::Instruction> {
+auto parse_lines(const std::vector<std::string> &lines) -> std::vector<instruction::Instruction> {
     auto line_number = 1;
     std::vector<instruction::Instruction> instructions{};
     for (const auto &line : lines) {
@@ -39,9 +37,7 @@ auto parse_lines(const std::vector<std::string> &lines)
         auto instruction = instruction::mnemonic_from_string(tokens[0]);
 
         if (instruction == std::nullopt) {
-            std::cerr << std::format("Error:{}: Invalid mnemonic '{}'",
-                                     line_number, tokens[0])
-                      << std::endl;
+            std::cerr << std::format("Error:{}: Invalid mnemonic '{}'", line_number, tokens[0]) << std::endl;
             std::exit(EXIT_FAILURE);
         }
 
@@ -58,13 +54,10 @@ auto parse_lines(const std::vector<std::string> &lines)
             std::holds_alternative<instruction::Jzero>(*instruction)) {
             try {
                 const auto instruction_number = std::stoll(tokens[1]);
-                instruction::set_jump_location(
-                    *instruction, (unsigned int)instruction_number);
+                instruction::set_jump_location(*instruction, (unsigned int)instruction_number);
                 instructions.push_back(*instruction);
             } catch (const std::invalid_argument &) {
-                std::cerr << std::format(
-                                 "Error:{}: Invalid instruction number '{}'",
-                                 line_number, tokens[1])
+                std::cerr << std::format("Error:{}: Invalid instruction number '{}'", line_number, tokens[1])
                           << std::endl;
                 std::exit(EXIT_FAILURE);
             }
@@ -74,9 +67,7 @@ auto parse_lines(const std::vector<std::string> &lines)
         const auto reg = instruction::from_string(tokens[1]);
 
         if (!reg) {
-            std::cerr << std::format("Error:{}: Invalid register '{}'",
-                                     line_number, tokens[1])
-                      << std::endl;
+            std::cerr << std::format("Error:{}: Invalid register '{}'", line_number, tokens[1]) << std::endl;
             std::exit(EXIT_FAILURE);
         }
 
@@ -90,8 +81,7 @@ auto parse_lines(const std::vector<std::string> &lines)
     return instructions;
 }
 
-VirtualMachine::VirtualMachine(
-    std::vector<instruction::Instruction> instructions)
+VirtualMachine::VirtualMachine(std::vector<instruction::Instruction> instructions)
     : instructions(std::move(instructions)) {
     lr = 0;
     srand((unsigned int)time(NULL));
@@ -115,12 +105,8 @@ void VirtualMachine::set_input(long long input) {
 
 auto VirtualMachine::process_next_instruction() -> StateCode {
     auto state_code = StateCode::RUNNING;
-    std::visit(overloaded{[&](const instruction::Read &) {
-                              state_code = StateCode::PENDING_INPUT;
-                          },
-                          [&](const instruction::Write &) {
-                              state_code = StateCode::PENDING_OUTPUT;
-                          },
+    std::visit(overloaded{[&](const instruction::Read &) { state_code = StateCode::PENDING_INPUT; },
+                          [&](const instruction::Write &) { state_code = StateCode::PENDING_OUTPUT; },
                           [&](const instruction::Load &load) {
                               r[0] = pam[r[(unsigned int)load.address]];
                               t += 50;
@@ -137,9 +123,7 @@ auto VirtualMachine::process_next_instruction() -> StateCode {
                               lr++;
                           },
                           [&](const instruction::Sub &sub) {
-                              r[0] -= r[0] >= r[(unsigned int)sub.address]
-                                          ? r[(unsigned int)sub.address]
-                                          : r[0];
+                              r[0] -= r[0] >= r[(unsigned int)sub.address] ? r[(unsigned int)sub.address] : r[0];
                               t += 5;
                               lr++;
                           },
@@ -206,9 +190,7 @@ auto VirtualMachine::process_next_instruction() -> StateCode {
                               lr = r[(unsigned int)jumpr.reg];
                               t += 1;
                           },
-                          [&](const instruction::Halt &) {
-                              state_code = StateCode::HALTED;
-                          },
+                          [&](const instruction::Halt &) { state_code = StateCode::HALTED; },
                           [&](const instruction::Comment &) {}},
                instructions[(unsigned long)lr]);
 

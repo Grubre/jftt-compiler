@@ -9,6 +9,7 @@ FetchContent_GetProperties(ftxui)
 if(NOT ftxui_POPULATED)
   message(STATUS "Fetching ftxui...")
   FetchContent_Populate(ftxui)
+  set(FTXUI_DEV_WARNINGS false CACHE BOOL "" FORCE)
   add_subdirectory(${ftxui_SOURCE_DIR} ${ftxui_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
