@@ -46,15 +46,6 @@ struct Condition {
     Token op;
     Value rhs;
 };
-
-enum class NodeType {
-    Expression,
-    Num,
-    Pidentifier,
-};
-
-enum class CommandType { Assignment, Read };
-
 struct Assignment {
     Identifier identifier;
     Expression expression;
