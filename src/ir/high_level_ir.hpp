@@ -20,21 +20,23 @@ struct VariableDeclaration {
 
 using Operand = std::variant<Variable, uint64_t>;
 
+enum class BinaryOperator { Add, Sub, Shl, Shr };
+
 struct Read {
     Variable loc;
 };
 struct Write {
     Operand op;
 };
-struct EmitConst {
+struct Assign {
     Variable loc;
-    uint64_t constant;
+    Operand op;
 };
 struct BinaryOp {
     Variable loc;
-    Operand op1;
-    char operator_;
-    Operand op2;
+    Operand lhs;
+    BinaryOperator operator_;
+    Operand rhs;
 };
 struct Jmp {
     std::string label;
@@ -57,7 +59,7 @@ struct BeginProcedure {
 struct Halt {};
 
 using HighLevelIRInstruction =
-    std::variant<Read, Write, EmitConst, BinaryOp, Jmp, JmpIf, Halt, Store, Load, BeginProcedure>;
+    std::variant<Read, Write, Assign, BinaryOp, Jmp, JmpIf, Halt, Store, Load, BeginProcedure>;
 
 struct HighLevelIR {
     std::vector<HighLevelIRInstruction> instructions;
@@ -78,24 +80,20 @@ class AstToHir {
     void emit_context(const ast::Context &context);
     void emit_commands(const std::span<const ast::Command> &commands);
 
+    void emit_write(const ast::Write &write);
+    void emit_assignment(const ast::Assignment &assignment);
+
     auto get_ir() const -> HighLevelIR const & { return ir; }
     auto get_errors() const -> std::vector<Error> const & { return errors; }
 
     auto get_variable_signature(const ast::Identifier &identifier) const -> std::string;
     auto get_variable_signature(const Token &identifier) const -> std::string;
 
-    auto get_variable_declaration(const Token &pidentifier) const -> VariableDeclaration const * {
-        const auto declaration = &variables.at(get_variable_signature(pidentifier));
-        return declaration;
-    }
-
-    auto get_variable(const ast::Identifier &identifier) const -> Variable {
-        const auto declaration = get_variable_declaration(identifier.name);
-        const auto offset = identifier.index ? std::stoull(identifier.index->lexeme) : 0;
-        return Variable{.id = declaration->id, .offset = offset};
-    }
-
-    auto get_next_variable_id() -> uint64_t { return next_variable_id++; }
+    auto get_variable_declaration(const Token &pidentifier) const -> VariableDeclaration const *;
+    auto get_variable(const ast::Identifier &identifier) const -> Variable;
+    auto get_constant(const ast::Num &num) -> uint64_t;
+    auto get_operand(const ast::Value &value) -> Operand;
+    auto get_next_variable_id() -> uint64_t;
 
   private:
     std::string current_source = "";
