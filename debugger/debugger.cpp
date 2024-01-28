@@ -285,6 +285,9 @@ auto read_files(const std::filesystem::path &filepath) -> std::optional<std::vec
     }
 
     for (std::string line; std::getline(file, line);) {
+        const auto first_non_whitespace = line.find_first_not_of(" \t\r");
+        if (first_non_whitespace == std::string::npos || line[first_non_whitespace] == '#')
+            continue;
         lines.push_back(line);
     }
 
