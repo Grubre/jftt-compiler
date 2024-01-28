@@ -109,6 +109,7 @@ void CfgBuilder::connect_blocks() {
                        },
                        [&](const Jumpr &jumpr) {
                            // TODO: what put here?
+                           // probably there is no block since the procedure just returns
                        },
                        [&](const Halt &) {},
                        [&](const auto &) {},

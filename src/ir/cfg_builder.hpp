@@ -4,6 +4,8 @@
 namespace lir {
 
 struct Block {
+    std::vector<uint64_t> live_in;
+    std::vector<uint64_t> live_out;
     uint64_t id;
     std::vector<VirtualInstruction> instructions;
     std::vector<uint64_t> prev;
