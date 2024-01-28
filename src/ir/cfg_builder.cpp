@@ -75,6 +75,49 @@ void CfgBuilder::push_current_block() {
 }
 
 auto CfgBuilder::build() -> Cfg {
+    split_into_blocks();
+    connect_blocks();
+    return cfg;
+}
+
+void CfgBuilder::connect_blocks() {
+    for (auto i = 0u; i < cfg.basic_blocks.size(); i++) {
+        const auto &block = cfg.basic_blocks[i];
+        const auto &last_instruction = block.instructions.back();
+        std::visit(overloaded{
+                       [&](const Jump &jump) {
+                           const auto label = jump.label;
+                           const auto block_with_label_id = label_to_block_id[label];
+                           cfg.basic_blocks[i].next.push_back(block_with_label_id);
+                           cfg.basic_blocks[block_with_label_id].prev.push_back(i);
+                       },
+                       [&](const Jpos &jpos) {
+                           const auto label = jpos.label;
+                           const auto block_with_label_id = label_to_block_id[label];
+                           cfg.basic_blocks[i].next.push_back(block_with_label_id);
+                           if (i < cfg.basic_blocks.size() - 1)
+                               cfg.basic_blocks[i].next.push_back(i + 1);
+                           cfg.basic_blocks[block_with_label_id].prev.push_back(i);
+                       },
+                       [&](const Jzero &jzero) {
+                           const auto label = jzero.label;
+                           const auto block_with_label_id = label_to_block_id[label];
+                           cfg.basic_blocks[i].next.push_back(block_with_label_id);
+                           if (i < cfg.basic_blocks.size() - 1)
+                               cfg.basic_blocks[i].next.push_back(i + 1);
+                           cfg.basic_blocks[block_with_label_id].prev.push_back(i);
+                       },
+                       [&](const Jumpr &jumpr) {
+                           // TODO: what put here?
+                       },
+                       [&](const Halt &) {},
+                       [&](const auto &) {},
+                   },
+                   last_instruction);
+    }
+}
+
+void CfgBuilder::split_into_blocks() {
     for (const auto &instruction : instructions) {
         std::visit(overloaded{
                        [&](const Jump &) {
@@ -97,7 +140,8 @@ auto CfgBuilder::build() -> Cfg {
                            current_block.instructions.push_back(instruction);
                            push_current_block();
                        },
-                       [&](const Label &) {
+                       [&](const Label &label) {
+                           label_to_block_id[label.name] = cfg.basic_blocks.size();
                            push_current_block();
                            current_block.instructions.push_back(instruction);
                        },
@@ -105,6 +149,5 @@ auto CfgBuilder::build() -> Cfg {
                    },
                    instruction);
     }
-    return cfg;
 }
 } // namespace lir

@@ -20,12 +20,18 @@ class CfgBuilder {
     CfgBuilder(std::vector<VirtualInstruction> &&instructions) : instructions(std::move(instructions)) {}
 
     auto build() -> Cfg;
+
+  private:
+    void split_into_blocks();
+    void connect_blocks();
     void push_current_block();
 
   private:
     Block current_block;
     Cfg cfg{};
     std::vector<VirtualInstruction> instructions;
+
+    std::unordered_map<std::string, uint64_t> label_to_block_id{};
 };
 
 } // namespace lir
