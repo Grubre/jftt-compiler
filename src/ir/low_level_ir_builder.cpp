@@ -115,6 +115,18 @@ void LirEmitter::emit_repeat(const ast::Repeat &repeat) {
     emit_label(false_label);
 }
 
+void LirEmitter::emit_assignment(const ast::Assignment &assignment) {
+    const auto identifier = assignment.identifier;
+
+    if (std::holds_alternative<ast::Value>(assignment.expression)) {
+        const auto value = std::get<ast::Value>(assignment.expression);
+        const auto vreg = put_constant_to_vreg_or_get(value);
+        set_vreg(identifier, vreg);
+        return;
+    }
+    assert(false && "Not supported yet");
+}
+
 void LirEmitter::put_to_vreg_or_mem(const ast::Identifier &identifier) {
     const auto variable = get_variable(identifier);
 
@@ -149,6 +161,15 @@ void LirEmitter::set_vreg(const ast::Value &value, VirtualRegister vreg) {
     } else {
         const auto identifier = std::get<ast::Identifier>(value);
         get_from_vreg_or_load_from_mem(identifier);
+    }
+}
+
+void LirEmitter::emit_constant(VirtualRegister vregister, const ast::Num &num) {
+    instructions.push_back(Load{vregister});
+    instructions.push_back(Add{});
+    const auto num_value = std::stoull(num.lexeme);
+    for (auto i = 0u; i < num_value; i++) {
+        instructions.push_back(Inc{});
     }
 }
 

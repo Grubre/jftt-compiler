@@ -70,15 +70,4 @@ struct Label {
 
 using VirtualInstruction = std::variant<Read, Write, Load, Store, Add, Sub, Get, Put, Rst, Inc, Dec, Shl, Shr, Jump,
                                         Jpos, Jzero, Strk, Jumpr, Label, Halt>;
-
-struct Block {
-    uint64_t id;
-    std::vector<VirtualInstruction> instructions;
-    std::vector<uint64_t> next;
-};
-struct Cfg {
-    std::vector<Block> basic_blocks;
-    std::unordered_map<std::string, uint64_t> label;
-};
-
 } // namespace lir

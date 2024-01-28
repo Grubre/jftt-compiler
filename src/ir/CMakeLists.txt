@@ -1,4 +1,5 @@
-add_library(Ir STATIC high_level_ir.cpp low_level_ir_builder.cpp)
+add_library(Ir STATIC high_level_ir.cpp low_level_ir_builder.cpp
+                      cfg_builder.cpp)
 
 target_link_libraries(Ir PUBLIC Common)
 
