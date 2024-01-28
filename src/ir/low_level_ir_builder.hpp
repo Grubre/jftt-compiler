@@ -16,6 +16,8 @@ class LirEmitter {
     void emit();
     void emit_procedure(const ast::Procedure &procedure);
     void emit_context(const ast::Context &context);
+    void emit_commands(const std::span<const ast::Command> commands);
+    void emit_label(const std::string &label);
 
     void emit_condition(const ast::Condition &condition, const std::string &true_label, const std::string &false_label);
     void emit_read(const ast::Read &read);
@@ -33,6 +35,9 @@ class LirEmitter {
     auto get_label_str(const std::string &label) -> std::string;
     void put_to_vreg_or_mem(const ast::Identifier &identifier);
     void get_from_vreg_or_load_from_mem(const ast::Identifier &identifier);
+
+    void set_vreg(const ast::Value &value, VirtualRegister vreg);
+    auto put_constant_to_vreg_or_get(const ast::Value &value) -> VirtualRegister;
 
   private:
     std::vector<VirtualInstruction> instructions;
