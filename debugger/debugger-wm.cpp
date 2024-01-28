@@ -1,4 +1,5 @@
 #include "debugger-wm.hpp"
+#include "common.hpp"
 #include <cstdlib>
 #include <ctime>
 #include <format>

@@ -7,6 +7,7 @@
 #include "analyzer.hpp"
 #include "emitter.hpp"
 #include "error.hpp"
+#include "ir/cfg_builder.hpp"
 #include "lexer.hpp"
 #include "mw-cln.hpp"
 #include "parser.hpp"
@@ -57,6 +58,8 @@ auto parse_cmdline_args(int argc, char **argv) -> CmdlineArgs {
 }
 
 auto main(int argc, char **argv) -> int {
+    lir::Cfg cfg;
+    return 0;
     const auto args = parse_cmdline_args(argc, argv);
 
     const auto filepath = std::string(args.input_file);

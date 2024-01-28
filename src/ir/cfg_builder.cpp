@@ -1,73 +1,33 @@
 #include "cfg_builder.hpp"
+#include "common.hpp"
 #include "instruction.hpp"
 
-/*
- *
-struct Read {};
-struct Write {};
-
-struct Load {
-    VirtualRegister address;
-};
-struct Store {
-    VirtualRegister address;
-};
-struct Add {
-    VirtualRegister address;
-};
-struct Sub {
-    VirtualRegister address;
-};
-struct Get {
-    VirtualRegister address;
-};
-struct Put {
-    VirtualRegister address;
-};
-struct Rst {
-    VirtualRegister address;
-};
-struct Inc {
-    VirtualRegister address;
-};
-struct Dec {
-    VirtualRegister address;
-};
-struct Shl {
-    VirtualRegister address;
-};
-struct Shr {
-    VirtualRegister address;
-};
-
-struct Jump {
-    std::string label;
-};
-struct Jpos {
-    std::string label;
-};
-struct Jzero {
-    std::string label;
-};
-
-struct Strk {
-    VirtualRegister reg;
-};
-struct Jumpr {
-    VirtualRegister reg;
-};
-
-struct Halt {};
-
-struct Label {
-    std::string name;
-};
-
-using VirtualInstruction = std::variant<Read, Write, Load, Store, Add, Sub, Get, Put, Rst, Inc, Dec, Shl, Shr, Jump,
-                                        Jpos, Jzero, Strk, Jumpr, Label, Halt>;
-
-*/
 namespace lir {
+
+auto generate_dot(const Cfg &cfg) -> std::string {
+    std::string dot = "digraph cfg {\n";
+    dot += "    node [shape=record];\n";
+    dot += "    edge [arrowhead=normal];\n";
+
+    for (const auto &block : cfg.basic_blocks) {
+        dot += "    block" + std::to_string(block.id) + " [label=\"Block " + std::to_string(block.id) + "|";
+
+        for (const auto &instr : block.instructions) {
+            dot += to_string(instr) + "\\l"; // '\\l' denotes left-align text in Graphviz
+        }
+
+        dot += "\"];\n";
+    }
+
+    for (const auto &block : cfg.basic_blocks) {
+        for (auto next_id : block.next_blocks_ids) {
+            dot += "    block" + std::to_string(block.id) + " -> block" + std::to_string(next_id) + ";\n";
+        }
+    }
+
+    dot += "}\n";
+    return dot;
+}
 
 void CfgBuilder::push_current_block() {
     cfg.basic_blocks.push_back(current_block);
@@ -88,28 +48,28 @@ void CfgBuilder::connect_blocks() {
                        [&](const Jump &jump) {
                            const auto label = jump.label;
                            const auto block_with_label_id = label_to_block_id[label];
-                           cfg.basic_blocks[i].next.push_back(block_with_label_id);
-                           cfg.basic_blocks[block_with_label_id].prev.push_back(i);
+                           cfg.basic_blocks[i].next_blocks_ids.push_back(block_with_label_id);
+                           cfg.basic_blocks[block_with_label_id].previous_blocks_ids.push_back(i);
                        },
                        [&](const Jpos &jpos) {
                            const auto label = jpos.label;
                            const auto block_with_label_id = label_to_block_id[label];
-                           cfg.basic_blocks[i].next.push_back(block_with_label_id);
+                           cfg.basic_blocks[i].next_blocks_ids.push_back(block_with_label_id);
                            if (i < cfg.basic_blocks.size() - 1)
-                               cfg.basic_blocks[i].next.push_back(i + 1);
-                           cfg.basic_blocks[block_with_label_id].prev.push_back(i);
+                               cfg.basic_blocks[i].next_blocks_ids.push_back(i + 1);
+                           cfg.basic_blocks[block_with_label_id].previous_blocks_ids.push_back(i);
                        },
                        [&](const Jzero &jzero) {
                            const auto label = jzero.label;
                            const auto block_with_label_id = label_to_block_id[label];
-                           cfg.basic_blocks[i].next.push_back(block_with_label_id);
+                           cfg.basic_blocks[i].next_blocks_ids.push_back(block_with_label_id);
                            if (i < cfg.basic_blocks.size() - 1)
-                               cfg.basic_blocks[i].next.push_back(i + 1);
-                           cfg.basic_blocks[block_with_label_id].prev.push_back(i);
+                               cfg.basic_blocks[i].next_blocks_ids.push_back(i + 1);
+                           cfg.basic_blocks[block_with_label_id].previous_blocks_ids.push_back(i);
                        },
                        [&](const Jumpr &jumpr) {
                            // TODO: what put here?
-                           // probably there is no block since the procedure just returns
+                           // NOTE: Probably all blocks that call this function
                        },
                        [&](const Halt &) {},
                        [&](const auto &) {},

@@ -1,9 +1,5 @@
 #include "low_level_ir_builder.hpp"
-
-template <class... Ts> struct overloaded : Ts... {
-    using Ts::operator()...;
-};
-template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+#include "common.hpp"
 
 namespace lir {
 

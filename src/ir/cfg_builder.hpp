@@ -8,13 +8,15 @@ struct Block {
     std::vector<uint64_t> live_out;
     uint64_t id;
     std::vector<VirtualInstruction> instructions;
-    std::vector<uint64_t> prev;
-    std::vector<uint64_t> next;
+    std::vector<uint64_t> previous_blocks_ids;
+    std::vector<uint64_t> next_blocks_ids;
 };
 
 struct Cfg {
     std::vector<Block> basic_blocks;
 };
+
+inline auto generate_dot(const Cfg &cfg) -> std::string;
 
 class CfgBuilder {
   public:

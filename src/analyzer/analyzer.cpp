@@ -1,4 +1,5 @@
 #include "analyzer.hpp"
+#include "common.hpp"
 #include "instruction.hpp"
 #include <iostream>
 #include <unordered_map>

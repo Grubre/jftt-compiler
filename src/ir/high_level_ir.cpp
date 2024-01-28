@@ -1,10 +1,6 @@
 #include "high_level_ir.hpp"
+#include "common.hpp"
 template <class> inline constexpr bool always_false_v = false;
-
-template <class... Ts> struct overloaded : Ts... {
-    using Ts::operator()...;
-};
-template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 using namespace hir;
 AstToHir::AstToHir(const ast::Program &program) {

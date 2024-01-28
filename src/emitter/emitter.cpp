@@ -1,5 +1,6 @@
 #include "emitter.hpp"
 #include "ast.hpp"
+#include "common.hpp"
 #include <format>
 #include <iostream>
 #include <limits>

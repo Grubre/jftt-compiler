@@ -1,5 +1,7 @@
 #pragma once
+#include "instruction.hpp"
 #include <cstdint>
+#include <format>
 #include <string>
 #include <unordered_map>
 #include <variant>
@@ -70,4 +72,6 @@ struct Label {
 
 using VirtualInstruction = std::variant<Read, Write, Load, Store, Add, Sub, Get, Put, Rst, Inc, Dec, Shl, Shr, Jump,
                                         Jpos, Jzero, Strk, Jumpr, Label, Halt>;
+
+auto to_string(const VirtualInstruction &instr) -> std::string;
 } // namespace lir

@@ -16,6 +16,7 @@
 #include <cstdlib> // rand()
 #include <ctime>
 
+#include "common.hpp"
 #include "mw.hpp"
 #include <iostream>
 #include <stack>
@@ -33,8 +34,7 @@ auto ReadHandlerDeque::get_next_input() -> uint64_t {
     return input;
 }
 
-ProgramState<long long> run_machine(const std::vector<instruction::Line> &lines,
-                                    ReadHandler *read_handler,
+ProgramState<long long> run_machine(const std::vector<instruction::Line> &lines, ReadHandler *read_handler,
                                     WriteHandler<uint64_t> *write_handler) {
     std::map<long long, long long> pam;
 
@@ -53,8 +53,7 @@ ProgramState<long long> run_machine(const std::vector<instruction::Line> &lines,
     t = 0;
     io = 0;
 
-    while (!std::holds_alternative<instruction::Halt>(
-        lines[lr].instruction)) // HALT
+    while (!std::holds_alternative<instruction::Halt>(lines[lr].instruction)) // HALT
     {
         std::visit(overloaded{[&](const instruction::Read &) {
                                   r[0] = read_handler->get_next_input();
@@ -82,9 +81,7 @@ ProgramState<long long> run_machine(const std::vector<instruction::Line> &lines,
                                   lr++;
                               },
                               [&](const instruction::Sub &sub) {
-                                  r[0] -= r[0] >= r[(int)sub.address]
-                                              ? r[(int)sub.address]
-                                              : r[0];
+                                  r[0] -= r[0] >= r[(int)sub.address] ? r[(int)sub.address] : r[0];
                                   t += 5;
                                   lr++;
                               },

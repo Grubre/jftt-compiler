@@ -1,4 +1,4 @@
-add_library(Common STATIC error.cpp)
+add_library(Common STATIC error.cpp instruction.cpp)
 
 target_link_libraries(Common PRIVATE fmt::fmt)
 
