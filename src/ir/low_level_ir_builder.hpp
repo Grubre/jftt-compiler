@@ -43,7 +43,7 @@ class LirEmitter {
     void set_vreg(const ast::Value &value, VirtualRegister vreg);
     auto put_constant_to_vreg_or_get(const ast::Value &value) -> VirtualRegister;
 
-    auto get_instructions() -> ProcedureCodes { return instructions;}
+    auto get_procedure_codes() -> ProcedureCodes { return instructions; }
 
   private:
     ProcedureCodes instructions;
@@ -52,6 +52,8 @@ class LirEmitter {
     VirtualRegister next_vregister_id = 1;
 
     std::unordered_map<std::string, ResolvedVariable> resolved_variables{};
+
+    constexpr static auto main_label = "MAIN";
 
     std::string current_source = "";
 };

@@ -110,18 +110,18 @@ auto main(int argc, char **argv) -> int {
         std::cout << name << ": " << count << std::endl;
     }
 
-    // auto LirEmitter = lir::LirEmitter(std::move(*program));
-    //
-    // LirEmitter.emit();
-    //
-    // auto instructions = LirEmitter.get_instructions();
-    //
-    // std::cout << "instructions count: " << instructions.size() << std::endl;
-    //
-    // for(auto &instruction : instructions) {
-    //     std::cout << to_string(instruction) << std::endl;
-    // }
-    //
+    auto LirEmitter = lir::LirEmitter(std::move(*program));
+
+    LirEmitter.emit();
+
+    auto procedure_codes = LirEmitter.get_procedure_codes();
+
+    for (auto &[_, instructions] : procedure_codes) {
+        for (auto &instruction : instructions) {
+            std::cout << to_string(instruction) << std::endl;
+        }
+    }
+
     // auto cfg_builder = lir::CfgBuilder(std::move(instructions));
     //
     // auto cfg = cfg_builder.build();
@@ -129,8 +129,8 @@ auto main(int argc, char **argv) -> int {
     // auto dot = lir::generate_dot(cfg);
     //
     // std::cout << dot << std::endl;
-    //
-    // return 0;
+
+    return 0;
 
     auto emitter = emitter::Emitter(std::move(*program));
 

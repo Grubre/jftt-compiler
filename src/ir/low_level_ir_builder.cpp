@@ -8,11 +8,19 @@ void LirEmitter::emit() {
         emit_procedure(procedure);
     }
 
+    push_instruction(Label{main_label});
     emit_context(program.main);
+    push_instruction(Halt{});
 }
 
 void LirEmitter::emit_procedure(const ast::Procedure &procedure) {
     current_source = procedure.signature();
+    push_instruction(Label{procedure.signature()});
+    for (const auto &variable : procedure.args) {
+        resolved_variables[current_source + "@" + variable.identifier.lexeme] =
+            ResolvedVariable{get_vregister(), false};
+    }
+
     emit_context(procedure.context);
 }
 
@@ -133,7 +141,9 @@ void LirEmitter::emit_assignment(const ast::Assignment &assignment) {
     assert(false && "Not supported yet");
 }
 
-void LirEmitter::push_instruction(VirtualInstruction instruction) {}
+void LirEmitter::push_instruction(VirtualInstruction instruction) {
+    instructions[current_source].push_back(instruction);
+}
 
 void LirEmitter::put_to_vreg_or_mem(const ast::Identifier &identifier) {
     const auto variable = get_variable(identifier);
