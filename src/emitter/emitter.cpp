@@ -760,7 +760,12 @@ void Emitter::emit_command(const ast::Command &command) {
                           [&](const ast::Repeat &repeat) { emit_repeat(repeat); },
                           [&](const ast::Assignment &assignment) { emit_assignment(assignment); },
                           [&](const ast::While &while_statement) { emit_while(while_statement); },
-                          [&](const ast::Call &call) { emit_call(call); }, [&](auto) { assert(false); }},
+                          [&](const ast::Call &call) { emit_call(call); },
+                          [&](const ast::InlinedProcedure &procedure) {
+                              for (const auto &command : procedure.commands) {
+                                  emit_command(command);
+                              }
+                          }},
                command);
 }
 

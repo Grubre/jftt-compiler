@@ -3,6 +3,7 @@ add_subdirectory(ir)
 add_subdirectory(lexer)
 add_subdirectory(parser)
 add_subdirectory(analyzer)
+add_subdirectory(ast-optimizer)
 add_subdirectory(emitter)
 add_subdirectory(vm)
 add_subdirectory(vm-cln)
@@ -17,4 +18,5 @@ target_link_libraries(
   Analyzer
   TestVM
   TestVMcln
-  Ir)
+  Ir
+  AstOptimizer)

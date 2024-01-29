@@ -11,6 +11,8 @@
 template <typename T> struct ProgramState {
     std::array<T, 8> r;
     std::map<long long, T> pam;
+    long long t;
+    long long io;
     bool error;
 };
 

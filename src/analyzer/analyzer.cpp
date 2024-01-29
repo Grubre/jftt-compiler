@@ -90,6 +90,9 @@ void Analyzer::analyze_commands(const std::vector<ast::Command> &commands, var_m
                                   // TODO: Check whether corresponding arguments are arrays /
                                   // variables
                               },
+                              [&](const ast::InlinedProcedure &inlined_procedure) {
+                                  analyze_commands(inlined_procedure.commands, variables);
+                              },
                               [&](const ast::If &if_) {
                                   // TODO: Check condition
                                   analyze_commands(if_.commands, variables);

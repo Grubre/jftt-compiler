@@ -43,6 +43,7 @@ void AstToHir::emit_commands(const std::span<const ast::Command> &commands) {
                        [&](const ast::Write &write) { emit_write(write); },
                        [&](const ast::While &while_) {},
                        [&](const ast::Call &call) {},
+                       [&](const ast::InlinedProcedure &procedure) { emit_commands(procedure.commands); },
                        [&](const ast::If &if_) {},
                        [&](const ast::Repeat &repeat) {},
                    },

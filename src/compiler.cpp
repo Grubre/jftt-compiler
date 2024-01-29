@@ -5,11 +5,12 @@
 #include <optional>
 
 #include "analyzer.hpp"
+#include "ast-optimizer.hpp"
+#include "cfg_builder.hpp"
 #include "emitter.hpp"
 #include "error.hpp"
-#include "cfg_builder.hpp"
-#include "low_level_ir_builder.hpp"
 #include "lexer.hpp"
+#include "low_level_ir_builder.hpp"
 #include "mw-cln.hpp"
 #include "parser.hpp"
 
@@ -99,27 +100,37 @@ auto main(int argc, char **argv) -> int {
         display_errors(analyzer);
     }
 
-    auto LirEmitter = lir::LirEmitter(std::move(*program));
+    auto ast_optimizer = AstOptimizer(&*program);
 
-    LirEmitter.emit();
+    ast_optimizer.calculate_procedure_call_counts();
 
-    auto instructions = LirEmitter.get_instructions();
+    ast_optimizer.inline_procedures();
 
-    std::cout << "instructions count: " << instructions.size() << std::endl;
-
-    for(auto &instruction : instructions) {
-        std::cout << to_string(instruction) << std::endl;
+    for (const auto &[name, count] : ast_optimizer.procedure_call_counts) {
+        std::cout << name << ": " << count << std::endl;
     }
 
-    auto cfg_builder = lir::CfgBuilder(std::move(instructions));
-
-    auto cfg = cfg_builder.build();
-
-    auto dot = lir::generate_dot(cfg);
-
-    std::cout << dot << std::endl;
-
-    return 0;
+    // auto LirEmitter = lir::LirEmitter(std::move(*program));
+    //
+    // LirEmitter.emit();
+    //
+    // auto instructions = LirEmitter.get_instructions();
+    //
+    // std::cout << "instructions count: " << instructions.size() << std::endl;
+    //
+    // for(auto &instruction : instructions) {
+    //     std::cout << to_string(instruction) << std::endl;
+    // }
+    //
+    // auto cfg_builder = lir::CfgBuilder(std::move(instructions));
+    //
+    // auto cfg = cfg_builder.build();
+    //
+    // auto dot = lir::generate_dot(cfg);
+    //
+    // std::cout << dot << std::endl;
+    //
+    // return 0;
 
     auto emitter = emitter::Emitter(std::move(*program));
 
@@ -147,6 +158,8 @@ auto main(int argc, char **argv) -> int {
     auto write_handler = std::make_unique<WriteHandlerStdout<cln::cl_I>>();
 
     const auto state = run_machine(emitter.get_lines(), read_handler.get(), write_handler.get());
+
+    std::cout << "Cost: " << state.t + state.io << std::endl;
 
     return 0;
 }

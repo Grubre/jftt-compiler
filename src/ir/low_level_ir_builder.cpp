@@ -17,8 +17,9 @@ void LirEmitter::emit_procedure(const ast::Procedure &procedure) {
 }
 
 void LirEmitter::emit_context(const ast::Context &context) {
-    for(const auto &variable : context.declarations) {
-        resolved_variables[current_source + "@" + variable.identifier.lexeme] = ResolvedVariable{get_vregister(), false};
+    for (const auto &variable : context.declarations) {
+        resolved_variables[current_source + "@" + variable.identifier.lexeme] =
+            ResolvedVariable{get_vregister(), false};
     }
     emit_commands(context.commands);
 }
@@ -31,18 +32,17 @@ void LirEmitter::emit_commands(const std::span<const ast::Command> commands) {
                               [&](const ast::Repeat &repeat) { emit_repeat(repeat); },
                               [&](const ast::Assignment &assignment) { emit_assignment(assignment); },
                               [&](const ast::While &while_statement) { emit_while(while_statement); },
-                              [&](const ast::Call &call) { emit_call(call); }},
+                              [&](const ast::Call &call) { emit_call(call); },
+                              [&](const ast::InlinedProcedure &procedure) { emit_commands(procedure.commands); }},
                    command);
     }
 }
 
-void LirEmitter::emit_call(const ast::Call &call) {
-    assert(false);
-}
+void LirEmitter::emit_call(const ast::Call &call) { assert(false); }
 
 void LirEmitter::emit_read(const ast::Read &read) {
     // NOTE: Potentially need to change the order of operations because A might be polluted by setting the memory
-    instructions.push_back(Read{});
+    push_instruction(Read{});
     put_to_vreg_or_mem(read.identifier);
 }
 
@@ -54,7 +54,7 @@ void LirEmitter::emit_write(const ast::Write &write) {
         const auto identifier = std::get<ast::Identifier>(write.value);
         get_from_vreg_or_load_from_mem(identifier);
     }
-    instructions.push_back(Write{});
+    push_instruction(Write{});
 }
 
 void LirEmitter::emit_condition(const ast::Condition &condition, const std::string &true_label,
@@ -62,23 +62,23 @@ void LirEmitter::emit_condition(const ast::Condition &condition, const std::stri
     const auto lhs_minus_rhs = [&]() {
         const auto rhs_vreg = put_constant_to_vreg_or_get(condition.rhs);
         set_vreg(condition.lhs, regA);
-        instructions.push_back(Sub{});
+        push_instruction(Sub{});
     };
     const auto rhs_minus_lhs = [&]() {
         const auto rhs_vreg = put_constant_to_vreg_or_get(condition.lhs);
         set_vreg(condition.rhs, regA);
-        instructions.push_back(Sub{});
+        push_instruction(Sub{});
     };
 
     // NOTE: Doesnt work for pointers
     switch (condition.op.token_type) {
     case TokenType::LessEquals:
         lhs_minus_rhs();
-        instructions.push_back(Jpos{false_label});
+        push_instruction(Jpos{false_label});
         break;
     case TokenType::GreaterEquals:
         rhs_minus_lhs();
-        instructions.push_back(Jpos{false_label});
+        push_instruction(Jpos{false_label});
         break;
     default:
         assert(false && "Not supported yet");
@@ -94,11 +94,10 @@ void LirEmitter::emit_if(const ast::If &if_statement) {
     emit_label(true_label);
     emit_commands(if_statement.commands);
 
+    emit_label(false_label);
     if (if_statement.else_commands) {
-        instructions.push_back(Jump{false_label});
         emit_commands(*if_statement.else_commands);
     }
-    emit_label(false_label);
 }
 
 void LirEmitter::emit_while(const ast::While &while_statement) {
@@ -108,7 +107,7 @@ void LirEmitter::emit_while(const ast::While &while_statement) {
     emit_label(true_label);
     emit_condition(while_statement.condition, true_label, false_label);
     emit_commands(while_statement.commands);
-    instructions.push_back(Jump{true_label});
+    push_instruction(Jump{true_label});
     emit_label(false_label);
 }
 
@@ -134,13 +133,15 @@ void LirEmitter::emit_assignment(const ast::Assignment &assignment) {
     assert(false && "Not supported yet");
 }
 
+void LirEmitter::push_instruction(VirtualInstruction instruction) {}
+
 void LirEmitter::put_to_vreg_or_mem(const ast::Identifier &identifier) {
     const auto variable = get_variable(identifier);
 
     if (!variable.is_pointer) {
-        instructions.push_back(Put{variable.vregister_id});
+        push_instruction(Put{variable.vregister_id});
     } else {
-        instructions.push_back(Store{variable.vregister_id});
+        push_instruction(Store{variable.vregister_id});
     }
 }
 
@@ -148,9 +149,9 @@ void LirEmitter::get_from_vreg_or_load_from_mem(const ast::Identifier &identifie
     const auto variable = get_variable(identifier);
 
     if (!variable.is_pointer) {
-        instructions.push_back(Get{variable.vregister_id});
+        push_instruction(Get{variable.vregister_id});
     } else {
-        instructions.push_back(Load{variable.vregister_id});
+        push_instruction(Load{variable.vregister_id});
     }
 }
 
@@ -172,15 +173,14 @@ void LirEmitter::set_vreg(const ast::Value &value, VirtualRegister vreg) {
 }
 
 void LirEmitter::emit_constant(VirtualRegister vregister, const ast::Num &num) {
-    instructions.push_back(Load{vregister});
-    instructions.push_back(Add{});
     const auto num_value = std::stoull(num.lexeme);
+    push_instruction(Rst{vregister});
     for (auto i = 0u; i < num_value; i++) {
-        instructions.push_back(Inc{});
+        push_instruction(Inc{vregister});
     }
 }
 
-void LirEmitter::emit_label(const std::string &label) { instructions.push_back(Label{label}); }
+void LirEmitter::emit_label(const std::string &label) { instructions["main"].push_back(Label{label}); }
 
 auto LirEmitter::put_constant_to_vreg_or_get(const ast::Value &value) -> VirtualRegister {
     if (std::holds_alternative<ast::Num>(value)) {

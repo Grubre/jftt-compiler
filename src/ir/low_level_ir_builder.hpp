@@ -10,6 +10,8 @@ struct ResolvedVariable {
 
 class LirEmitter {
   public:
+    using Instructions = std::vector<VirtualInstruction>;
+    using ProcedureCodes = std::unordered_map<std::string, Instructions>;
     LirEmitter() = delete;
     LirEmitter(ast::Program &&program) : program(std::move(program)) {}
 
@@ -30,6 +32,8 @@ class LirEmitter {
 
     void emit_constant(VirtualRegister vregister, const ast::Num &num);
 
+    void push_instruction(VirtualInstruction instruction);
+
     auto get_variable(const ast::Identifier &identifier) -> ResolvedVariable;
     auto get_vregister() -> VirtualRegister;
     auto get_label_str(const std::string &label) -> std::string;
@@ -39,10 +43,10 @@ class LirEmitter {
     void set_vreg(const ast::Value &value, VirtualRegister vreg);
     auto put_constant_to_vreg_or_get(const ast::Value &value) -> VirtualRegister;
 
-    auto get_instructions() -> std::vector<VirtualInstruction> { return instructions;}
+    auto get_instructions() -> ProcedureCodes { return instructions;}
 
   private:
-    std::vector<VirtualInstruction> instructions;
+    ProcedureCodes instructions;
     ast::Program program;
     static constexpr VirtualRegister regA = 0;
     VirtualRegister next_vregister_id = 1;

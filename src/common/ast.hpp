@@ -84,8 +84,13 @@ struct Call {
 struct If;
 struct Repeat;
 struct While;
+struct InlinedProcedure;
 
-using Command = std::variant<Assignment, Read, Write, While, Call, If, Repeat>;
+using Command = std::variant<Assignment, Read, Write, While, Call, If, Repeat, InlinedProcedure>;
+
+struct InlinedProcedure {
+    std::vector<Command> commands;
+};
 
 struct While {
     Condition condition;

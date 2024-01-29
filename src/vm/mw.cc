@@ -153,7 +153,7 @@ ProgramState<long long> run_machine(const std::vector<instruction::Line> &lines,
                    lines[lr].instruction);
 
         if (lr < 0 || lr >= (int)lines.size()) {
-            return ProgramState<long long>{r, pam, true};
+            return ProgramState<long long>{.r = r, .pam = pam, .t =t, .io=io, .error=true};
             // cerr << cRed << "Błąd: Wywołanie nieistniejącej instrukcji nr "
             // << lr << "." << cReset << endl;
             // exit(-1);
@@ -167,5 +167,5 @@ ProgramState<long long> run_machine(const std::vector<instruction::Line> &lines,
         //     std::cout << "p[" << p.first << "] = " << p.second << std::endl;
     }
 
-    return ProgramState<long long>{r, pam, false};
+    return ProgramState<long long>{.r = r, .pam = pam, .t =t, .io=io, .error=false};
 }
