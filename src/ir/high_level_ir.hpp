@@ -53,17 +53,16 @@ struct Load {
     Variable loc;
     uint64_t memory_loc;
 };
-struct BeginProcedure {
+struct Label {
     std::string name;
 };
 struct Halt {};
 
 using HighLevelIRInstruction =
-    std::variant<Read, Write, Assign, BinaryOp, Jmp, JmpIf, Halt, Store, Load, BeginProcedure>;
+    std::variant<Read, Write, Assign, BinaryOp, Jmp, JmpIf, Halt, Store, Load, Label>;
 
 struct HighLevelIR {
     std::vector<HighLevelIRInstruction> instructions;
-    std::unordered_map<std::string, uint64_t> labels;
     std::unordered_map<uint64_t, uint64_t> constant_frequencies;
     std::unordered_map<std::string, uint64_t> function_call_frequencies;
 };

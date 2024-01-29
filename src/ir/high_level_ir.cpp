@@ -21,7 +21,7 @@ void AstToHir::emit_procedure(const ast::Procedure &procedure) {
             VariableDeclaration{.id = get_next_variable_id(), .is_pointer = true};
     }
 
-    push_instruction(BeginProcedure{}, procedure.signature());
+    push_instruction(Label{}, procedure.signature());
 
     emit_context(procedure.context);
 }
@@ -74,10 +74,6 @@ void AstToHir::emit_assignment(const ast::Assignment &assignment) {
 }
 
 void AstToHir::push_instruction(HighLevelIRInstruction instruction, std::optional<std::string> label) {
-    if (label) {
-        ir.labels[*label] = ir.instructions.size();
-    }
-
     ir.instructions.push_back(instruction);
 }
 
