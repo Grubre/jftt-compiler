@@ -7,6 +7,8 @@ void LirEmitter::emit() {
     for (const auto &procedure : program.procedures) {
         emit_procedure(procedure);
     }
+
+    emit_context(program.main);
 }
 
 void LirEmitter::emit_procedure(const ast::Procedure &procedure) {
@@ -14,7 +16,12 @@ void LirEmitter::emit_procedure(const ast::Procedure &procedure) {
     emit_context(procedure.context);
 }
 
-void LirEmitter::emit_context(const ast::Context &context) { emit_commands(context.commands); }
+void LirEmitter::emit_context(const ast::Context &context) {
+    for(const auto &variable : context.declarations) {
+        resolved_variables[current_source + "@" + variable.identifier.lexeme] = ResolvedVariable{get_vregister(), false};
+    }
+    emit_commands(context.commands);
+}
 
 void LirEmitter::emit_commands(const std::span<const ast::Command> commands) {
     for (const auto &command : commands) {
@@ -27,6 +34,10 @@ void LirEmitter::emit_commands(const std::span<const ast::Command> commands) {
                               [&](const ast::Call &call) { emit_call(call); }},
                    command);
     }
+}
+
+void LirEmitter::emit_call(const ast::Call &call) {
+    assert(false);
 }
 
 void LirEmitter::emit_read(const ast::Read &read) {

@@ -7,7 +7,8 @@
 #include "analyzer.hpp"
 #include "emitter.hpp"
 #include "error.hpp"
-#include "ir/cfg_builder.hpp"
+#include "cfg_builder.hpp"
+#include "low_level_ir_builder.hpp"
 #include "lexer.hpp"
 #include "mw-cln.hpp"
 #include "parser.hpp"
@@ -31,10 +32,11 @@ struct CmdlineArgs {
 };
 
 void display_errors(const ThrowsError auto &collection) {
+    std::cout << "size: " << collection.get_errors().size() << std::endl;
     bool is_error = false;
     const auto errors = collection.get_errors();
     for (auto &error : errors) {
-        is_error = display_error(error);
+        is_error = display_error(error) || is_error;
     }
     if (is_error)
         exit(1);
@@ -58,8 +60,6 @@ auto parse_cmdline_args(int argc, char **argv) -> CmdlineArgs {
 }
 
 auto main(int argc, char **argv) -> int {
-    lir::Cfg cfg;
-    return 0;
     const auto args = parse_cmdline_args(argc, argv);
 
     const auto filepath = std::string(args.input_file);
@@ -98,6 +98,28 @@ auto main(int argc, char **argv) -> int {
     if (!analyzer.analyze()) {
         display_errors(analyzer);
     }
+
+    auto LirEmitter = lir::LirEmitter(std::move(*program));
+
+    LirEmitter.emit();
+
+    auto instructions = LirEmitter.get_instructions();
+
+    std::cout << "instructions count: " << instructions.size() << std::endl;
+
+    for(auto &instruction : instructions) {
+        std::cout << to_string(instruction) << std::endl;
+    }
+
+    auto cfg_builder = lir::CfgBuilder(std::move(instructions));
+
+    auto cfg = cfg_builder.build();
+
+    auto dot = lir::generate_dot(cfg);
+
+    std::cout << dot << std::endl;
+
+    return 0;
 
     auto emitter = emitter::Emitter(std::move(*program));
 

@@ -11,7 +11,7 @@ struct ResolvedVariable {
 class LirEmitter {
   public:
     LirEmitter() = delete;
-    LirEmitter(ast::Program &&program) : program(std::move(program)) { emit(); }
+    LirEmitter(ast::Program &&program) : program(std::move(program)) {}
 
     void emit();
     void emit_procedure(const ast::Procedure &procedure);
@@ -38,6 +38,8 @@ class LirEmitter {
 
     void set_vreg(const ast::Value &value, VirtualRegister vreg);
     auto put_constant_to_vreg_or_get(const ast::Value &value) -> VirtualRegister;
+
+    auto get_instructions() -> std::vector<VirtualInstruction> { return instructions;}
 
   private:
     std::vector<VirtualInstruction> instructions;

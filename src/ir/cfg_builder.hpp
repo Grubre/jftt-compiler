@@ -16,7 +16,7 @@ struct Cfg {
     std::vector<Block> basic_blocks;
 };
 
-inline auto generate_dot(const Cfg &cfg) -> std::string;
+auto generate_dot(const Cfg &cfg) -> std::string;
 
 class CfgBuilder {
   public:
