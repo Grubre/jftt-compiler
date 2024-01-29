@@ -8,6 +8,10 @@ struct ResolvedVariable {
     bool is_pointer;
 };
 
+struct Procedure {
+    std::vector<VirtualRegister> args;
+};
+
 class LirEmitter {
   public:
     using Instructions = std::vector<VirtualInstruction>;
@@ -35,26 +39,30 @@ class LirEmitter {
     void push_instruction(VirtualInstruction instruction);
 
     auto get_variable(const ast::Identifier &identifier) -> ResolvedVariable;
-    auto get_vregister() -> VirtualRegister;
+    auto get_variable(const Token &identifier) -> ResolvedVariable;
+    auto new_vregister() -> VirtualRegister;
     auto get_label_str(const std::string &label) -> std::string;
     void put_to_vreg_or_mem(const ast::Identifier &identifier);
     void get_from_vreg_or_load_from_mem(const ast::Identifier &identifier);
+    void get_from_vreg_or_load_from_mem(const Token &identifier);
 
     void set_vreg(const ast::Value &value, VirtualRegister vreg);
     auto put_constant_to_vreg_or_get(const ast::Value &value) -> VirtualRegister;
 
-    auto get_procedure_codes() -> ProcedureCodes { return instructions; }
+    auto get_procedure_codes() -> ProcedureCodes;
+    auto get_flattened_instructions() -> Instructions;
 
   private:
-    ProcedureCodes instructions;
     ast::Program program;
-    static constexpr VirtualRegister regA = 0;
-    VirtualRegister next_vregister_id = 1;
 
+    std::unordered_map<std::string, Procedure> procedures;
     std::unordered_map<std::string, ResolvedVariable> resolved_variables{};
+    ProcedureCodes instructions;
 
-    constexpr static auto main_label = "MAIN";
-
+    VirtualRegister next_vregister_id = 1;
     std::string current_source = "";
+
+    static constexpr auto main_label = "MAIN";
+    static constexpr VirtualRegister regA = 0;
 };
 } // namespace lir

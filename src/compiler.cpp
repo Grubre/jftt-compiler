@@ -114,16 +114,12 @@ auto main(int argc, char **argv) -> int {
 
     LirEmitter.emit();
 
-    auto procedure_codes = LirEmitter.get_procedure_codes();
+    auto instructions = LirEmitter.get_flattened_instructions();
 
-    for (auto &[_, instructions] : procedure_codes) {
-        for (auto &instruction : instructions) {
-            std::cout << to_string(instruction) << std::endl;
-        }
+    for (auto &instruction : instructions) {
+        std::cout << to_string(instruction) << std::endl;
     }
 
-    // auto cfg_builder = lir::CfgBuilder(std::move(instructions));
-    //
     // auto cfg = cfg_builder.build();
     //
     // auto dot = lir::generate_dot(cfg);

@@ -14,20 +14,26 @@ void LirEmitter::emit() {
 }
 
 void LirEmitter::emit_procedure(const ast::Procedure &procedure) {
-    current_source = procedure.signature();
-    push_instruction(Label{procedure.signature()});
+    current_source = procedure.name.lexeme;
+
+    const auto return_address_vreg = new_vregister();
+    procedures[current_source] = Procedure{{return_address_vreg}};
+
     for (const auto &variable : procedure.args) {
-        resolved_variables[current_source + "@" + variable.identifier.lexeme] =
-            ResolvedVariable{get_vregister(), false};
+        const auto vreg = new_vregister();
+        resolved_variables[current_source + "@" + variable.identifier.lexeme] = ResolvedVariable{vreg, true};
+        procedures[current_source].args.push_back(vreg);
     }
 
+    push_instruction(Label{current_source});
     emit_context(procedure.context);
+    push_instruction(Jumpr{return_address_vreg});
 }
 
 void LirEmitter::emit_context(const ast::Context &context) {
     for (const auto &variable : context.declarations) {
         resolved_variables[current_source + "@" + variable.identifier.lexeme] =
-            ResolvedVariable{get_vregister(), false};
+            ResolvedVariable{new_vregister(), false};
     }
     emit_commands(context.commands);
 }
@@ -46,7 +52,20 @@ void LirEmitter::emit_commands(const std::span<const ast::Command> commands) {
     }
 }
 
-void LirEmitter::emit_call(const ast::Call &call) { assert(false); }
+void LirEmitter::emit_call(const ast::Call &call) {
+    const auto return_address_vreg = procedures[call.name.lexeme].args[0];
+
+    for (auto i = 0u; i < call.args.size(); ++i) {
+        const auto arg = call.args[i];
+        const auto vreg = procedures[call.name.lexeme].args[i + 1];
+        // FIXME: Here it is supposed to pass the address, not the value
+        get_from_vreg_or_load_from_mem(arg);
+        push_instruction(Put{vreg});
+    }
+
+    push_instruction(Strk{return_address_vreg});
+    push_instruction(Jump{call.name.lexeme});
+}
 
 void LirEmitter::emit_read(const ast::Read &read) {
     // NOTE: Potentially need to change the order of operations because A might be polluted by setting the memory
@@ -165,12 +184,27 @@ void LirEmitter::get_from_vreg_or_load_from_mem(const ast::Identifier &identifie
     }
 }
 
+void LirEmitter::get_from_vreg_or_load_from_mem(const Token &identifier) {
+    const auto variable = get_variable(identifier);
+
+    if (!variable.is_pointer) {
+        push_instruction(Get{variable.vregister_id});
+    } else {
+        push_instruction(Load{variable.vregister_id});
+    }
+}
+
 auto LirEmitter::get_variable(const ast::Identifier &identifier) -> ResolvedVariable {
     const auto signature = current_source + "@" + identifier.name.lexeme;
     return resolved_variables.at(signature);
 }
 
-auto LirEmitter::get_vregister() -> VirtualRegister { return VirtualRegister{next_vregister_id++}; }
+auto LirEmitter::get_variable(const Token &identifier) -> ResolvedVariable {
+    const auto signature = current_source + "@" + identifier.lexeme;
+    return resolved_variables.at(signature);
+}
+
+auto LirEmitter::new_vregister() -> VirtualRegister { return VirtualRegister{next_vregister_id++}; }
 
 void LirEmitter::set_vreg(const ast::Value &value, VirtualRegister vreg) {
     if (std::holds_alternative<ast::Num>(value)) {
@@ -195,7 +229,7 @@ void LirEmitter::emit_label(const std::string &label) { instructions["main"].pus
 auto LirEmitter::put_constant_to_vreg_or_get(const ast::Value &value) -> VirtualRegister {
     if (std::holds_alternative<ast::Num>(value)) {
         const auto num = std::get<ast::Num>(value);
-        const auto vreg = get_vregister();
+        const auto vreg = new_vregister();
         emit_constant(vreg, num);
         return vreg;
     }
@@ -206,4 +240,12 @@ auto LirEmitter::get_label_str(const std::string &label) -> std::string {
     return std::format("{}#{}", label, next_vregister_id++);
 }
 
+auto LirEmitter::get_procedure_codes() -> ProcedureCodes { return instructions; }
+auto LirEmitter::get_flattened_instructions() -> Instructions {
+    auto result = Instructions{};
+    for (const auto &[_, instructions] : instructions) {
+        result.insert(result.end(), instructions.begin(), instructions.end());
+    }
+    return result;
+}
 } // namespace lir
