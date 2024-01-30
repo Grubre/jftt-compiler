@@ -87,14 +87,14 @@ void LirEmitter::emit_write(const ast::Write &write) {
 void LirEmitter::emit_condition(const ast::Condition &condition, const std::string &true_label,
                                 const std::string &false_label) {
     const auto lhs_minus_rhs = [&]() {
-        put_constant_to_vreg_or_get(condition.rhs);
+        const auto rhs = put_constant_to_vreg_or_get(condition.rhs);
         set_vreg(condition.lhs, regA);
-        push_instruction(Sub{});
+        push_instruction(Sub{rhs});
     };
     const auto rhs_minus_lhs = [&]() {
-        put_constant_to_vreg_or_get(condition.lhs);
+        const auto rhs = put_constant_to_vreg_or_get(condition.lhs);
         set_vreg(condition.rhs, regA);
-        push_instruction(Sub{});
+        push_instruction(Sub{rhs});
     };
 
     // NOTE: Doesnt work for pointers

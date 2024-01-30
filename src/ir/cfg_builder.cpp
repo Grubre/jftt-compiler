@@ -110,9 +110,6 @@ void CfgBuilder::split_into_blocks() {
                        [&](const Label &label) {
                            push_current_block();
                            label_to_block_id[label.name] = cfg.basic_blocks.size();
-                           std::cout << "Assigning label " << label.name << " to block " << cfg.basic_blocks.size()
-                                     << "\n";
-
                            current_block.instructions.push_back(instruction);
                        },
                        [&](const auto &) { current_block.instructions.push_back(instruction); },
@@ -129,7 +126,8 @@ void CfgBuilder::calculate_live_ins_and_outs() {
         auto live_block = std::set<uint64_t>{};
         for (const auto &instruction : block.instructions) {
             for (const auto &reg : read_variables(instruction)) {
-                reads[block.id].insert(reg);
+                if (!overwrites[block.id].contains(reg))
+                    reads[block.id].insert(reg);
             }
             for (const auto &reg : overwritten_variables(instruction)) {
                 overwrites[block.id].insert(reg);
