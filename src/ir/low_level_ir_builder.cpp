@@ -239,8 +239,29 @@ void LirEmitter::set_vreg(const ast::Value &value, VirtualRegister vreg) {
 
 void LirEmitter::emit_constant(VirtualRegister vregister, const ast::Num &num) {
     const auto num_value = std::stoull(num.lexeme);
-    push_instruction(Rst{vregister});
-    for (auto i = 0u; i < num_value; i++) {
+    
+    if (num_value == 0) {
+        return;
+    }
+
+    auto value_copy = num_value;
+    unsigned msb_position = 0;
+
+    while (value_copy >>= 1) {
+        msb_position++;
+    }
+
+    uint64_t mask = 1llu << msb_position;
+
+    while (mask > 1) {
+        if (num_value & mask) {
+            push_instruction(Inc{vregister});
+        }
+        push_instruction(Shl{vregister});
+        mask >>= 1;
+    }
+
+    if (num_value & mask) {
         push_instruction(Inc{vregister});
     }
 }
