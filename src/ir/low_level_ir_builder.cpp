@@ -395,9 +395,9 @@ void LirEmitter::emit_assignment(const ast::Assignment &assignment) {
         const auto label_begin = get_label_str("MULTIPLY_BEGIN");
         const auto label_end = get_label_str("MULTIPLY_END");
         const auto label_even = get_label_str("MULTIPLY_EVEN");
-        const auto d = new_vregister();
+        const auto tmp = new_vregister();
         // FIXME: Here it should be load or get
-        push_instruction(Rst{d});
+        push_instruction(Rst{tmp});
         emit_label(label_begin);
         push_instruction(Get{rhs});
         push_instruction(Jzero{label_end});
@@ -408,17 +408,25 @@ void LirEmitter::emit_assignment(const ast::Assignment &assignment) {
         push_instruction(Sub{rhs});
         // if mod 2 == 1
         push_instruction(Jpos{label_even});
-        push_instruction(Get{d});
+        push_instruction(Get{tmp});
         push_instruction(Add{lhs});
-        push_instruction(Put{d});
+        push_instruction(Put{tmp});
         emit_label(label_even);
         // b << 1 c >> 1
         push_instruction(Shl{lhs});
         push_instruction(Shr{rhs});
         push_instruction(Jump{label_begin});
         emit_label(label_end);
-        push_instruction(Get{d});
+        push_instruction(Get{tmp});
         push_instruction(Put{assignee});
+        break;
+    }
+    case TokenType::Slash: {
+        const auto label_begin_counting = get_label_str("DIVIDE_BEGIN_COUNTING");
+        const auto label_end_counting = get_label_str("DIVIDE_END_COUNTING");
+        const auto label_begin_dividing = get_label_str("DIVIDE_BEGIN_DIVIDING");
+        const auto label_end_dividing = get_label_str("DIVIDE_END_DIVIDING");
+        const auto label_cant_sub = get_label_str("DIVIDE_CANT_SUB");
         break;
     }
     default:
