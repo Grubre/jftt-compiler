@@ -135,14 +135,7 @@ void LirEmitter::spill(Cfg *cfg, VirtualRegister vreg) {
     populate_interference_graph(cfg);
 }
 
-void LirEmitter::allocate_registers(Cfg *cfg) {
-    this->cfg = cfg;
-
-    populate_interference_graph(cfg);
-
-    this->assigned_registers = std::vector<instruction::Register>(next_vregister_id);
-    assigned_registers[0] = instruction::Register::A;
-
+auto LirEmitter::try_color_graph(Cfg *cfg) -> bool {
     auto active_nodes_count = next_vregister_id;
     auto stack = std::stack<uint64_t>{};
     auto active_nodes = std::vector<bool>(next_vregister_id, true);
@@ -189,11 +182,30 @@ void LirEmitter::allocate_registers(Cfg *cfg) {
             continue;
         }
 
-        // spill
+        std::cout << "Spilling register " << current_node << "\n";
+        spill(cfg, current_node);
+        return false;
     }
 
     for (auto i = 0u; i < assigned_registers.size(); ++i) {
         std::cout << "Register " << i << " assigned to " << (int)assigned_registers[i] << "\n";
+    }
+
+    return true;
+}
+
+void LirEmitter::allocate_registers(Cfg *cfg) {
+    this->cfg = cfg;
+
+    populate_interference_graph(cfg);
+
+    this->assigned_registers = std::vector<instruction::Register>(next_vregister_id);
+    assigned_registers[0] = instruction::Register::A;
+
+    while (!try_color_graph(cfg)) {
+        populate_interference_graph(cfg);
+        this->assigned_registers = std::vector<instruction::Register>(next_vregister_id);
+        assigned_registers[0] = instruction::Register::A;
     }
 }
 
@@ -215,7 +227,8 @@ void LirEmitter::emit_procedure(const ast::Procedure &procedure) {
 
     for (const auto &variable : procedure.args) {
         const auto vreg = new_vregister();
-        resolved_variables[current_source + "@" + variable.identifier.lexeme] = ResolvedVariable{vreg, true};
+        resolved_variables[current_source + "@" + variable.identifier.lexeme] =
+            ResolvedVariable{vreg, true, variable.is_array};
         procedures[current_source].args.push_back(vreg);
     }
 
@@ -226,8 +239,9 @@ void LirEmitter::emit_procedure(const ast::Procedure &procedure) {
 
 void LirEmitter::emit_context(const ast::Context &context) {
     for (const auto &variable : context.declarations) {
-        resolved_variables[current_source + "@" + variable.identifier.lexeme] =
-            ResolvedVariable{new_vregister(), false};
+        const auto signature = current_source + "@" + variable.identifier.lexeme;
+        resolved_variables[signature] = ResolvedVariable{new_vregister(), false, variable.array_size.has_value()};
+        allocate_memory(signature, variable.array_size.has_value() ? std::stoull(variable.array_size->lexeme) : 1);
     }
     emit_commands(context.commands);
 }
@@ -349,12 +363,11 @@ void LirEmitter::emit_repeat(const ast::Repeat &repeat) {
 }
 
 void LirEmitter::emit_assignment(const ast::Assignment &assignment) {
-    const auto identifier = assignment.identifier;
+    const auto &identifier = assignment.identifier;
 
     if (std::holds_alternative<ast::Value>(assignment.expression)) {
         const auto value = std::get<ast::Value>(assignment.expression);
-        const auto vreg = put_constant_to_vreg_or_get(value);
-        set_vreg(identifier, vreg);
+        set_vreg(value, get_variable(identifier).vregister_id);
         return;
     }
 
@@ -415,6 +428,28 @@ auto LirEmitter::get_from_vreg_or_load_from_mem(const Token &identifier) -> Virt
     return variable.vregister_id;
 }
 
+auto LirEmitter::set_to_vreg_or_store_to_mem(const ast::Identifier &identifier) -> VirtualRegister {
+    const auto variable = get_variable(identifier);
+
+    if (!variable.is_pointer) {
+        push_instruction(Get{variable.vregister_id});
+    } else {
+        push_instruction(Load{variable.vregister_id});
+    }
+    return variable.vregister_id;
+}
+
+auto LirEmitter::set_to_vreg_or_store_to_mem(const Token &identifier) -> VirtualRegister {
+    const auto variable = get_variable(identifier);
+
+    if (!variable.is_pointer) {
+        push_instruction(Get{variable.vregister_id});
+    } else {
+        push_instruction(Load{variable.vregister_id});
+    }
+    return variable.vregister_id;
+}
+
 auto LirEmitter::get_variable(const ast::Identifier &identifier) -> ResolvedVariable {
     const auto signature = current_source + "@" + identifier.name.lexeme;
     return resolved_variables.at(signature);
@@ -434,6 +469,7 @@ void LirEmitter::set_vreg(const ast::Value &value, VirtualRegister vreg) {
     } else {
         const auto identifier = std::get<ast::Identifier>(value);
         get_from_vreg_or_load_from_mem(identifier);
+        push_instruction(Put{vreg});
     }
 }
 
@@ -452,6 +488,8 @@ void LirEmitter::emit_constant(VirtualRegister vregister, const ast::Num &num) {
     }
 
     uint64_t mask = 1llu << msb_position;
+
+    push_instruction(Rst{vregister});
 
     while (mask > 1) {
         if (num_value & mask) {
@@ -608,6 +646,11 @@ void LirEmitter::change_vreg(VirtualInstruction &instruction, VirtualRegister ne
                    [&](Halt &) {},
                },
                instruction);
+}
+
+void LirEmitter::allocate_memory(const std::string &name, uint64_t size) {
+    memory_locations[name] = next_memory_location;
+    next_memory_location += size;
 }
 
 auto LirEmitter::get_new_memory_location() -> uint64_t { return next_memory_location++; }

@@ -7,6 +7,7 @@ namespace lir {
 struct ResolvedVariable {
     uint64_t vregister_id;
     bool is_pointer;
+    bool is_array;
 };
 
 struct Procedure {
@@ -45,11 +46,14 @@ class LirEmitter {
 
     auto get_variable(const ast::Identifier &identifier) -> ResolvedVariable;
     auto get_variable(const Token &identifier) -> ResolvedVariable;
+    void allocate_memory(const std::string &name, uint64_t size);
     auto new_vregister() -> VirtualRegister;
     auto get_label_str(const std::string &label) -> std::string;
     void put_to_vreg_or_mem(const ast::Identifier &identifier);
     auto get_from_vreg_or_load_from_mem(const ast::Identifier &identifier) -> VirtualRegister;
     auto get_from_vreg_or_load_from_mem(const Token &identifier) -> VirtualRegister;
+    auto set_to_vreg_or_store_to_mem(const ast::Identifier &identifier) -> VirtualRegister;
+    auto set_to_vreg_or_store_to_mem(const Token &identifier) -> VirtualRegister;
 
     auto get_new_memory_location() -> uint64_t;
 
@@ -63,6 +67,7 @@ class LirEmitter {
 
     void populate_interference_graph(Cfg *cfg);
     void allocate_registers(Cfg *cfg);
+    auto try_color_graph(Cfg *cfg) -> bool;
     void spill(Cfg *cfg, VirtualRegister vreg);
     auto emit_assembler() -> std::vector<instruction::Line>;
 
@@ -73,6 +78,7 @@ class LirEmitter {
     std::unordered_map<std::string, ResolvedVariable> resolved_variables{};
     ProcedureCodes instructions;
 
+    std::unordered_map<std::string, uint64_t> memory_locations;
     VirtualRegister next_vregister_id = 1;
     uint64_t next_label_id = 0;
     uint64_t next_memory_location = 0;

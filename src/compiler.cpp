@@ -149,6 +149,10 @@ auto main(int argc, char **argv) -> int {
     // }
     const auto lines = lir_emitter.emit_assembler();
 
+    for (const auto &line : lines) {
+        std::cout << to_string(line.instruction) << std::endl;
+    }
+
     if (args.output_file) {
         std::ofstream output(*args.output_file);
         for (auto &line : lines) {
