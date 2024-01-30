@@ -113,18 +113,20 @@ void LirEmitter::emit_condition(const ast::Condition &condition, const std::stri
 }
 
 void LirEmitter::emit_if(const ast::If &if_statement) {
-    const auto true_label = get_label_str("if_true");
-    const auto false_label = get_label_str("if_false");
+    const auto true_label = get_label_str("IF_TRUE");
+    const auto false_label = get_label_str("IF_FALSE");
+    const auto endif_label = get_label_str("ENDIF");
 
     emit_condition(if_statement.condition, true_label, false_label);
 
-    emit_label(true_label);
     emit_commands(if_statement.commands);
+    push_instruction(Jump{endif_label});
 
-    emit_label(false_label);
     if (if_statement.else_commands) {
+        emit_label(false_label);
         emit_commands(*if_statement.else_commands);
     }
+    emit_label(endif_label);
 }
 
 void LirEmitter::emit_while(const ast::While &while_statement) {
@@ -157,7 +159,26 @@ void LirEmitter::emit_assignment(const ast::Assignment &assignment) {
         set_vreg(identifier, vreg);
         return;
     }
-    assert(false && "Not supported yet");
+
+    const auto binary_expression = std::get<ast::BinaryExpression>(assignment.expression);
+    const auto assignee = get_variable(identifier).vregister_id;
+    const auto lhs = put_constant_to_vreg_or_get(binary_expression.lhs);
+    const auto rhs = put_constant_to_vreg_or_get(binary_expression.rhs);
+
+    switch (binary_expression.op.token_type) {
+    case TokenType::Plus:
+        push_instruction(Get{lhs});
+        push_instruction(Add{rhs});
+        push_instruction(Put{assignee});
+        break;
+    case TokenType::Minus:
+        push_instruction(Get{lhs});
+        push_instruction(Sub{rhs});
+        push_instruction(Put{assignee});
+        break;
+    default:
+        assert(false && "Not supported yet");
+    }
 }
 
 void LirEmitter::push_instruction(VirtualInstruction instruction) {
@@ -224,7 +245,7 @@ void LirEmitter::emit_constant(VirtualRegister vregister, const ast::Num &num) {
     }
 }
 
-void LirEmitter::emit_label(const std::string &label) { instructions["main"].push_back(Label{label}); }
+void LirEmitter::emit_label(const std::string &label) { push_instruction(Label{label}); }
 
 auto LirEmitter::put_constant_to_vreg_or_get(const ast::Value &value) -> VirtualRegister {
     if (std::holds_alternative<ast::Num>(value)) {

@@ -120,11 +120,17 @@ auto main(int argc, char **argv) -> int {
         std::cout << to_string(instruction) << std::endl;
     }
 
-    // auto cfg = cfg_builder.build();
-    //
-    // auto dot = lir::generate_dot(cfg);
-    //
-    // std::cout << dot << std::endl;
+    auto cfg_builder = lir::CfgBuilder(instructions);
+
+    auto cfg = cfg_builder.build();
+
+    auto dot = lir::generate_dot(cfg);
+
+    auto graph_output = std::ofstream("graph.dot");
+
+    graph_output << dot << std::endl;
+
+    graph_output.close();
 
     return 0;
 

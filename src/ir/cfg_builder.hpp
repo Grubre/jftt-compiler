@@ -4,9 +4,9 @@
 namespace lir {
 
 struct Block {
+    uint64_t id;
     std::vector<uint64_t> live_in;
     std::vector<uint64_t> live_out;
-    uint64_t id;
     std::vector<VirtualInstruction> instructions;
     std::vector<uint64_t> previous_blocks_ids;
     std::vector<uint64_t> next_blocks_ids;
@@ -21,7 +21,7 @@ auto generate_dot(const Cfg &cfg) -> std::string;
 class CfgBuilder {
   public:
     CfgBuilder() = delete;
-    CfgBuilder(std::vector<VirtualInstruction> &&instructions) : instructions(std::move(instructions)) {}
+    CfgBuilder(const std::vector<VirtualInstruction> &instructions) : instructions(instructions) {}
 
     auto build() -> Cfg;
 
@@ -31,9 +31,10 @@ class CfgBuilder {
     void push_current_block();
 
   private:
-    Block current_block;
+    uint64_t current_block_id = 0;
+    Block current_block{.id = current_block_id};
     Cfg cfg{};
-    std::vector<VirtualInstruction> instructions;
+    const std::vector<VirtualInstruction> &instructions;
 
     std::unordered_map<std::string, uint64_t> label_to_block_id{};
 };

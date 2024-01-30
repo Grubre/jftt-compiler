@@ -1,6 +1,7 @@
 #include "cfg_builder.hpp"
 #include "common.hpp"
 #include "instruction.hpp"
+#include <iostream>
 
 namespace lir {
 
@@ -30,8 +31,11 @@ auto generate_dot(const Cfg &cfg) -> std::string {
 }
 
 void CfgBuilder::push_current_block() {
+    if (current_block.instructions.empty())
+        return;
     cfg.basic_blocks.push_back(current_block);
-    current_block = Block{};
+    current_block_id++;
+    current_block = Block{.id = current_block_id};
 }
 
 auto CfgBuilder::build() -> Cfg {
@@ -55,17 +59,12 @@ void CfgBuilder::connect_blocks() {
                            const auto label = jpos.label;
                            const auto block_with_label_id = label_to_block_id[label];
                            cfg.basic_blocks[i].next_blocks_ids.push_back(block_with_label_id);
-                           if (i < cfg.basic_blocks.size() - 1)
-                               cfg.basic_blocks[i].next_blocks_ids.push_back(i + 1);
                            cfg.basic_blocks[block_with_label_id].previous_blocks_ids.push_back(i);
                        },
                        [&](const Jzero &jzero) {
                            const auto label = jzero.label;
                            const auto block_with_label_id = label_to_block_id[label];
                            cfg.basic_blocks[i].next_blocks_ids.push_back(block_with_label_id);
-                           if (i < cfg.basic_blocks.size() - 1)
-                               cfg.basic_blocks[i].next_blocks_ids.push_back(i + 1);
-                           cfg.basic_blocks[block_with_label_id].previous_blocks_ids.push_back(i);
                        },
                        [&](const Jumpr &jumpr) {
                            // TODO: what put here?
@@ -75,6 +74,10 @@ void CfgBuilder::connect_blocks() {
                        [&](const auto &) {},
                    },
                    last_instruction);
+
+        if (!std::holds_alternative<Jump>(last_instruction) && i < cfg.basic_blocks.size() - 1) {
+            cfg.basic_blocks[i].next_blocks_ids.push_back(i + 1);
+        }
     }
 }
 
@@ -102,8 +105,11 @@ void CfgBuilder::split_into_blocks() {
                            push_current_block();
                        },
                        [&](const Label &label) {
-                           label_to_block_id[label.name] = cfg.basic_blocks.size();
                            push_current_block();
+                           label_to_block_id[label.name] = cfg.basic_blocks.size();
+                           std::cout << "Assigning label " << label.name << " to block " << cfg.basic_blocks.size()
+                                     << "\n";
+
                            current_block.instructions.push_back(instruction);
                        },
                        [&](const auto &) { current_block.instructions.push_back(instruction); },
