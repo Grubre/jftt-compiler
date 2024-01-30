@@ -78,7 +78,9 @@ void CfgBuilder::connect_blocks() {
                    },
                    last_instruction);
 
-        if (!std::holds_alternative<Jump>(last_instruction) && i < cfg.basic_blocks.size() - 1) {
+        if (!(std::holds_alternative<Jump>(last_instruction) || std::holds_alternative<Jumpr>(last_instruction) ||
+              std::holds_alternative<Halt>(last_instruction)) &&
+            i < cfg.basic_blocks.size() - 1) {
             cfg.basic_blocks[i].next_blocks_ids.push_back(i + 1);
         }
     }

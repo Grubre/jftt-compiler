@@ -214,6 +214,7 @@ void LirEmitter::emit() {
         emit_procedure(procedure);
     }
 
+    current_source = main_label;
     push_instruction(Label{main_label});
     emit_context(program.main);
     push_instruction(Halt{});
@@ -272,7 +273,7 @@ void LirEmitter::emit_call(const ast::Call &call) {
     }
 
     push_instruction(Strk{return_address_vreg});
-    push_instruction(Jump{call.name.lexeme});
+    push_instruction(Jump{call.name.lexeme, true});
 }
 
 void LirEmitter::emit_read(const ast::Read &read) {
@@ -373,20 +374,53 @@ void LirEmitter::emit_assignment(const ast::Assignment &assignment) {
 
     const auto binary_expression = std::get<ast::BinaryExpression>(assignment.expression);
     const auto assignee = get_variable(identifier).vregister_id;
-    const auto lhs = put_constant_to_vreg_or_get(binary_expression.lhs);
+    // FIXME: This breaks with pointers because we use get
     const auto rhs = put_constant_to_vreg_or_get(binary_expression.rhs);
+    const auto lhs = put_constant_to_vreg_or_get(binary_expression.lhs);
 
     switch (binary_expression.op.token_type) {
-    case TokenType::Plus:
+    case TokenType::Plus: {
         push_instruction(Get{lhs});
         push_instruction(Add{rhs});
         push_instruction(Put{assignee});
         break;
-    case TokenType::Minus:
+    }
+    case TokenType::Minus: {
         push_instruction(Get{lhs});
         push_instruction(Sub{rhs});
         push_instruction(Put{assignee});
         break;
+    }
+    case TokenType::Star: {
+        const auto label_begin = get_label_str("MULTIPLY_BEGIN");
+        const auto label_end = get_label_str("MULTIPLY_END");
+        const auto label_even = get_label_str("MULTIPLY_EVEN");
+        const auto d = new_vregister();
+        // FIXME: Here it should be load or get
+        push_instruction(Rst{d});
+        emit_label(label_begin);
+        push_instruction(Get{rhs});
+        push_instruction(Jzero{label_end});
+        // check mod 2
+        push_instruction(Shr{regA});
+        push_instruction(Shl{regA});
+        push_instruction(Inc{regA});
+        push_instruction(Sub{rhs});
+        // if mod 2 == 1
+        push_instruction(Jpos{label_even});
+        push_instruction(Get{d});
+        push_instruction(Add{lhs});
+        push_instruction(Put{d});
+        emit_label(label_even);
+        // b << 1 c >> 1
+        push_instruction(Shl{lhs});
+        push_instruction(Shr{rhs});
+        push_instruction(Jump{label_begin});
+        emit_label(label_end);
+        push_instruction(Get{d});
+        push_instruction(Put{assignee});
+        break;
+    }
     default:
         assert(false && "Not supported yet");
     }
@@ -513,7 +547,7 @@ auto LirEmitter::put_constant_to_vreg_or_get(const ast::Value &value) -> Virtual
         emit_constant(vreg, num);
         return vreg;
     }
-    return get_from_vreg_or_load_from_mem(std::get<ast::Identifier>(value));
+    return get_variable(std::get<ast::Identifier>(value)).vregister_id;
 }
 
 auto LirEmitter::get_label_str(const std::string &label) -> std::string {
@@ -523,6 +557,9 @@ auto LirEmitter::get_label_str(const std::string &label) -> std::string {
 auto LirEmitter::get_procedure_codes() -> ProcedureCodes { return instructions; }
 auto LirEmitter::get_flattened_instructions() -> Instructions {
     auto result = Instructions{};
+    if (!procedures.empty()) {
+        result.push_back(Jump(main_label));
+    }
     for (const auto &[_, instructions] : instructions) {
         result.insert(result.end(), instructions.begin(), instructions.end());
     }

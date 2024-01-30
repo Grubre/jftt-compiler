@@ -51,6 +51,7 @@ struct Shr {
 
 struct Jump {
     std::string label;
+    bool jumps_to_procedure = false;
 };
 struct Jpos {
     std::string label;

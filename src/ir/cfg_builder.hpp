@@ -12,6 +12,8 @@ struct Block {
     std::vector<uint64_t> previous_blocks_ids{};
     std::vector<uint64_t> next_blocks_ids{};
 
+    Block *points_to_procedure = nullptr;
+
     auto to_string() const -> std::string {
         auto result = std::format("Block {}:\n", id);
         result += "live in: ";
