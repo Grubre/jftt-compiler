@@ -116,13 +116,17 @@ auto main(int argc, char **argv) -> int {
 
     auto instructions = LirEmitter.get_flattened_instructions();
 
-    for (auto &instruction : instructions) {
-        std::cout << to_string(instruction) << std::endl;
-    }
+    // for (auto &instruction : instructions) {
+    //     std::cout << to_string(instruction) << std::endl;
+    // }
 
     auto cfg_builder = lir::CfgBuilder(instructions);
 
     auto cfg = cfg_builder.build();
+
+    for (const auto &block : cfg.basic_blocks) {
+        std::cout << block.to_string() << std::endl;
+    }
 
     auto dot = lir::generate_dot(cfg);
 

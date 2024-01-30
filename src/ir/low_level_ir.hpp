@@ -10,6 +10,8 @@
 namespace lir {
 using VirtualRegister = uint64_t;
 
+constexpr auto regA = VirtualRegister{0};
+
 struct Read {};
 struct Write {};
 
@@ -72,6 +74,9 @@ struct Label {
 
 using VirtualInstruction = std::variant<Read, Write, Load, Store, Add, Sub, Get, Put, Rst, Inc, Dec, Shl, Shr, Jump,
                                         Jpos, Jzero, Strk, Jumpr, Label, Halt>;
+
+auto read_variables(const VirtualInstruction &instr) -> std::vector<VirtualRegister>;
+auto overwritten_variables(const VirtualInstruction &instr) -> std::vector<VirtualRegister>;
 
 auto to_string(const VirtualInstruction &instr) -> std::string;
 } // namespace lir

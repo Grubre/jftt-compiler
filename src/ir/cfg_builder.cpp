@@ -2,6 +2,8 @@
 #include "common.hpp"
 #include "instruction.hpp"
 #include <iostream>
+#include <ranges>
+#include <stack>
 
 namespace lir {
 
@@ -41,6 +43,7 @@ void CfgBuilder::push_current_block() {
 auto CfgBuilder::build() -> Cfg {
     split_into_blocks();
     connect_blocks();
+    calculate_live_ins_and_outs();
     return cfg;
 }
 
@@ -115,6 +118,65 @@ void CfgBuilder::split_into_blocks() {
                        [&](const auto &) { current_block.instructions.push_back(instruction); },
                    },
                    instruction);
+    }
+}
+
+void CfgBuilder::calculate_live_ins_and_outs() {
+    auto reads = std::unordered_map<uint64_t, std::set<uint64_t>>{};
+    auto overwrites = std::unordered_map<uint64_t, std::set<uint64_t>>{};
+
+    for (const auto &block : cfg.basic_blocks) {
+        auto live_block = std::set<uint64_t>{};
+        for (const auto &instruction : block.instructions) {
+            for (const auto &reg : read_variables(instruction)) {
+                reads[block.id].insert(reg);
+            }
+            for (const auto &reg : overwritten_variables(instruction)) {
+                overwrites[block.id].insert(reg);
+            }
+        }
+    }
+
+    for (const auto &block : cfg.basic_blocks) {
+        std::cout << "Block " << block.id << " reads: ";
+        for (const auto &reg : reads[block.id]) {
+            std::cout << reg << ", ";
+        }
+        std::cout << "\n";
+        std::cout << "Block " << block.id << " overwrites: ";
+        for (const auto &reg : overwrites[block.id]) {
+            std::cout << reg << ", ";
+        }
+        std::cout << "\n";
+    }
+
+    for (auto &block : cfg.basic_blocks) {
+        block.live_in = reads[block.id];
+    }
+
+    bool improved = true;
+    while (improved) {
+        improved = false;
+
+        for (int i = cfg.basic_blocks.size() - 1; i >= 0; i--) {
+            auto &current_block = cfg.basic_blocks[i];
+
+            for (const auto next : current_block.next_blocks_ids) {
+                for (const auto live_in : cfg.basic_blocks[next].live_in) {
+                    if (!current_block.live_out.contains(live_in)) {
+                        current_block.live_out.insert(live_in);
+                        improved = true;
+                    }
+                }
+
+                for (const auto live_out : current_block.live_out) {
+                    if (!overwrites[current_block.id].contains(live_out) && !current_block.live_in.contains(live_out)) {
+                        current_block.live_in.insert(live_out);
+                        improved = true;
+                    }
+                }
+            }
+        }
     }
 }
 } // namespace lir
