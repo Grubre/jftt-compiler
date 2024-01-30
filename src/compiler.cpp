@@ -138,19 +138,20 @@ auto main(int argc, char **argv) -> int {
 
     graph_output.close();
 
-    return 0;
-
-    auto emitter = emitter::Emitter(std::move(*program));
-
-    emitter.emit();
-
-    if (emitter.get_errors().size() > 0) {
-        display_errors(emitter);
-    }
+    // auto emitter = emitter::Emitter(std::move(*program));
+    //
+    // emitter.emit();
+    //
+    // const auto lines = emitter.get_lines();
+    //
+    // if (emitter.get_errors().size() > 0) {
+    //     display_errors(emitter);
+    // }
+    const auto lines = lir_emitter.emit_assembler();
 
     if (args.output_file) {
         std::ofstream output(*args.output_file);
-        for (auto &line : emitter.get_lines()) {
+        for (auto &line : lines) {
             const auto instruction = line.instruction;
             const auto comment = line.comment;
 
@@ -165,7 +166,7 @@ auto main(int argc, char **argv) -> int {
     auto read_handler = std::make_unique<ReadHandlerStdin>();
     auto write_handler = std::make_unique<WriteHandlerStdout<cln::cl_I>>();
 
-    const auto state = run_machine(emitter.get_lines(), read_handler.get(), write_handler.get());
+    const auto state = run_machine(lines, read_handler.get(), write_handler.get());
 
     std::cout << "Cost: " << state.t + state.io << std::endl;
 

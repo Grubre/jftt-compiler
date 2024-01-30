@@ -1,11 +1,13 @@
 #include "low_level_ir_builder.hpp"
 #include "common.hpp"
+#include "instruction.hpp"
+#include <algorithm>
 #include <iostream>
+#include <stack>
 
 namespace lir {
 
-void LirEmitter::allocate_registers(Cfg *cfg) {
-    this->cfg = cfg;
+void LirEmitter::populate_interference_graph(Cfg *cfg) {
     interference_graph.neighbours.resize(next_vregister_id);
 
     for (const auto &block : cfg->basic_blocks) {
@@ -18,11 +20,11 @@ void LirEmitter::allocate_registers(Cfg *cfg) {
             for (const auto read : read_variables(instruction)) {
                 alive_registers.insert(read);
             }
-        }
-        for (const auto &reg : alive_registers) {
-            for (const auto &alive_reg : alive_registers) {
-                if (reg != alive_reg) {
-                    interference_graph.neighbours[reg].insert(alive_reg);
+            for (const auto &reg : alive_registers) {
+                for (const auto &alive_reg : alive_registers) {
+                    if (reg != alive_reg) {
+                        interference_graph.neighbours[reg].insert(alive_reg);
+                    }
                 }
             }
         }
@@ -35,6 +37,163 @@ void LirEmitter::allocate_registers(Cfg *cfg) {
             std::cout << neighbour << ", ";
         }
         std::cout << "\n";
+    }
+}
+
+void LirEmitter::spill(Cfg *cfg, VirtualRegister vreg) {
+    const auto spill_location = get_new_memory_location();
+
+    auto insert_instruction = [&](std::vector<VirtualInstruction> &vec, uint64_t pos, VirtualInstruction instruction) {
+        vec.insert(vec.begin() + pos, instruction);
+    };
+
+    auto gen_constant = [&](std::vector<VirtualInstruction> &vec, uint64_t pos, uint64_t value) -> uint64_t {
+        auto value_copy = value;
+        unsigned msb_position = 0;
+
+        auto offset = 0u;
+
+        if (value == 0) {
+            return 0;
+        }
+
+        while (value_copy >>= 1) {
+            msb_position++;
+        }
+
+        uint64_t mask = 1llu << msb_position;
+
+        while (mask > 1) {
+            if (value & mask) {
+                insert_instruction(vec, pos + offset, Inc{vreg});
+                offset++;
+            }
+            insert_instruction(vec, pos + offset, Shl{vreg});
+            offset++;
+            mask >>= 1;
+        }
+
+        if (value & mask) {
+            insert_instruction(vec, pos + offset, Inc{vreg});
+            offset++;
+        }
+
+        return offset;
+    };
+
+    for (auto &block : cfg->basic_blocks) {
+        for (auto i = 0u; i < block.instructions.size(); ++i) {
+            auto &instruction = block.instructions[i];
+
+            const auto read = read_variables(instruction);
+            const auto overwritten = overwritten_variables(instruction);
+
+            const auto is_read = std::find(read.begin(), read.end(), vreg) != read.end();
+            const auto is_overwritten = std::find(overwritten.begin(), overwritten.end(), vreg) != overwritten.end();
+
+            if (is_read && is_overwritten) {
+                const auto tmp = new_vregister();
+                const auto spilled_vreg = new_vregister();
+                change_vreg(instruction, spilled_vreg);
+                insert_instruction(block.instructions, i, Put{tmp});
+                const auto offset = gen_constant(block.instructions, i + 1, spill_location);
+                insert_instruction(block.instructions, i + 2 + offset, Load{regA});
+                insert_instruction(block.instructions, i + 4 + offset, Store{regA});
+                insert_instruction(block.instructions, i + 5 + offset, Get{tmp});
+                i = i + 5 + offset;
+            }
+
+            if (is_read) {
+                const auto tmp = new_vregister();
+                const auto spilled_vreg = new_vregister();
+                change_vreg(instruction, spilled_vreg);
+                insert_instruction(block.instructions, i, Put{tmp});
+                const auto offset = gen_constant(block.instructions, i + 1, spill_location);
+                insert_instruction(block.instructions, i + 2 + offset, Load{regA});
+                insert_instruction(block.instructions, i + 4 + offset, Get{tmp});
+                i = i + 4 + offset;
+                continue;
+            }
+
+            if (is_overwritten) {
+                const auto tmp = new_vregister();
+                const auto spilled_vreg = new_vregister();
+                change_vreg(instruction, spilled_vreg);
+                insert_instruction(block.instructions, i, Put{tmp});
+                const auto offset = gen_constant(block.instructions, i + 1, spill_location);
+                insert_instruction(block.instructions, i + 2 + offset, Store{regA});
+                insert_instruction(block.instructions, i + 4 + offset, Get{tmp});
+                i = i + 4 + offset;
+                continue;
+            }
+        }
+
+        block.live_in.erase(vreg);
+        block.live_out.erase(vreg);
+    }
+
+    populate_interference_graph(cfg);
+}
+
+void LirEmitter::allocate_registers(Cfg *cfg) {
+    this->cfg = cfg;
+
+    populate_interference_graph(cfg);
+
+    this->assigned_registers = std::vector<instruction::Register>(next_vregister_id);
+    assigned_registers[0] = instruction::Register::A;
+
+    auto active_nodes_count = next_vregister_id;
+    auto stack = std::stack<uint64_t>{};
+    auto active_nodes = std::vector<bool>(next_vregister_id, true);
+
+    const auto deg = 8u;
+
+    while (active_nodes_count > 0) {
+        auto current_node = 1u;
+
+        for (auto i = 1u; i < next_vregister_id; ++i) {
+            if (active_nodes[i] && interference_graph.neighbours[i].size() < deg) {
+                current_node = i;
+                break;
+            }
+        }
+
+        active_nodes[current_node] = false;
+        stack.push(current_node);
+        active_nodes_count--;
+    }
+
+    while (!stack.empty()) {
+        auto current_node = stack.top();
+        stack.pop();
+
+        auto available_registers = std::vector<bool>(8, true);
+        available_registers[0] = false;
+        for (const auto neighbour : interference_graph.neighbours[current_node]) {
+            if (active_nodes[neighbour])
+                available_registers[(int)assigned_registers[neighbour]] = false;
+        }
+
+        auto i = 1u;
+        for (; i < deg; i++) {
+            if (available_registers[i]) {
+                assigned_registers[current_node] = (instruction::Register)i;
+                break;
+            }
+        }
+
+        if (i != deg) {
+            active_nodes[current_node] = true;
+            assigned_registers[current_node] = (instruction::Register)i;
+            continue;
+        }
+
+        // spill
+    }
+
+    for (auto i = 0u; i < assigned_registers.size(); ++i) {
+        std::cout << "Register " << i << " assigned to " << (int)assigned_registers[i] << "\n";
     }
 }
 
@@ -331,4 +490,126 @@ auto LirEmitter::get_flattened_instructions() -> Instructions {
     }
     return result;
 }
+
+auto LirEmitter::emit_assembler() -> std::vector<instruction::Line> {
+    auto codelines = 0u;
+    auto labels = std::unordered_map<std::string, uint64_t>{};
+    for (const auto &[_, instructions] : instructions) {
+        for (const auto &instruction : instructions) {
+            if (!std::holds_alternative<Label>(instruction)) {
+                codelines++;
+                continue;
+            }
+            const auto label = std::get<Label>(instruction);
+            labels[label.name] = codelines;
+        }
+    }
+
+    auto result = std::vector<instruction::Line>{};
+    for (const auto &[_, instructions] : instructions) {
+        for (const auto &instruction : instructions) {
+            std::visit(overloaded{
+                           [&](const Read &) { result.push_back(instruction::Line{instruction::Read{}}); },
+                           [&](const Write &) { result.push_back(instruction::Line{instruction::Write{}}); },
+                           [&](const Load &load) {
+                               const auto mapped_reg = assigned_registers[load.address];
+                               result.push_back(instruction::Line{instruction::Load{mapped_reg}});
+                           },
+                           [&](const Store &store) {
+                               const auto mapped_reg = assigned_registers[store.address];
+                               result.push_back(instruction::Line{instruction::Store{mapped_reg}});
+                           },
+                           [&](const Add &add) {
+                               const auto mapped_reg = assigned_registers[add.address];
+                               result.push_back(instruction::Line{instruction::Add{mapped_reg}});
+                           },
+                           [&](const Sub &sub) {
+                               const auto mapped_reg = assigned_registers[sub.address];
+                               result.push_back(instruction::Line{instruction::Sub{mapped_reg}});
+                           },
+                           [&](const Get &get) {
+                               const auto mapped_reg = assigned_registers[get.address];
+                               result.push_back(instruction::Line{instruction::Get{mapped_reg}});
+                           },
+                           [&](const Put &put) {
+                               const auto mapped_reg = assigned_registers[put.address];
+                               result.push_back(instruction::Line{instruction::Put{mapped_reg}});
+                           },
+                           [&](const Rst &rst) {
+                               const auto mapped_reg = assigned_registers[rst.address];
+                               result.push_back(instruction::Line{instruction::Rst{mapped_reg}});
+                           },
+                           [&](const Inc &inc) {
+                               const auto mapped_reg = assigned_registers[inc.address];
+                               result.push_back(instruction::Line{instruction::Inc{mapped_reg}});
+                           },
+                           [&](const Dec &dec) {
+                               const auto mapped_reg = assigned_registers[dec.address];
+                               result.push_back(instruction::Line{instruction::Dec{mapped_reg}});
+                           },
+                           [&](const Shl &shl) {
+                               const auto mapped_reg = assigned_registers[shl.address];
+                               result.push_back(instruction::Line{instruction::Shl{mapped_reg}});
+                           },
+                           [&](const Shr &shr) {
+                               const auto mapped_reg = assigned_registers[shr.address];
+                               result.push_back(instruction::Line{instruction::Shr{mapped_reg}});
+                           },
+                           [&](const Jump &jump) {
+                               const auto location = labels[jump.label];
+                               result.push_back(instruction::Line{instruction::Jump{location}});
+                           },
+                           [&](const Jpos &jpos) {
+                               const auto location = labels[jpos.label];
+                               result.push_back(instruction::Line{instruction::Jpos{location}});
+                           },
+                           [&](const Jzero &jzero) {
+                               const auto location = labels[jzero.label];
+                               result.push_back(instruction::Line{instruction::Jzero{location}});
+                           },
+                           [&](const Strk &strk) {
+                               const auto mapped_reg = assigned_registers[strk.reg];
+                               result.push_back(instruction::Line{instruction::Strk{mapped_reg}});
+                           },
+                           [&](const Jumpr &jumpr) {
+                               const auto mapped_reg = assigned_registers[jumpr.reg];
+                               result.push_back(instruction::Line{instruction::Jumpr{mapped_reg}});
+                           },
+                           [&](const Label &label) {},
+                           [&](const Halt &) { result.push_back(instruction::Line{instruction::Halt{}}); },
+                       },
+                       instruction);
+        }
+    }
+    return result;
+}
+
+void LirEmitter::change_vreg(VirtualInstruction &instruction, VirtualRegister new_vreg) {
+    std::visit(overloaded{
+                   [&](Read &) {},
+                   [&](Write &) {},
+                   [&](Load &load) { load.address = new_vreg; },
+                   [&](Store &store) { store.address = new_vreg; },
+                   [&](Add &add) { add.address = new_vreg; },
+                   [&](Sub &sub) { sub.address = new_vreg; },
+                   [&](Get &get) { get.address = new_vreg; },
+                   [&](Put &put) { put.address = new_vreg; },
+                   [&](Rst &rst) { rst.address = new_vreg; },
+                   [&](Inc &inc) { inc.address = new_vreg; },
+                   [&](Dec &dec) { dec.address = new_vreg; },
+                   [&](Shl &shl) { shl.address = new_vreg; },
+                   [&](Shr &shr) { shr.address = new_vreg; },
+                   [&](Jump &) {},
+                   [&](Jpos &) {},
+                   [&](Jzero &) {},
+                   [&](Strk &strk) { strk.reg = new_vreg; },
+                   [&](Jumpr &jumpr) { jumpr.reg = new_vreg; },
+                   [&](Label &) {},
+                   [&](Halt &) {},
+               },
+               instruction);
+}
+
+auto LirEmitter::get_new_memory_location() -> uint64_t { return next_memory_location++; }
+
 } // namespace lir

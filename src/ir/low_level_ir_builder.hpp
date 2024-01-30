@@ -51,13 +51,20 @@ class LirEmitter {
     auto get_from_vreg_or_load_from_mem(const ast::Identifier &identifier) -> VirtualRegister;
     auto get_from_vreg_or_load_from_mem(const Token &identifier) -> VirtualRegister;
 
+    auto get_new_memory_location() -> uint64_t;
+
     void set_vreg(const ast::Value &value, VirtualRegister vreg);
     auto put_constant_to_vreg_or_get(const ast::Value &value) -> VirtualRegister;
 
     auto get_procedure_codes() -> ProcedureCodes;
     auto get_flattened_instructions() -> Instructions;
 
+    void change_vreg(VirtualInstruction &instruction, VirtualRegister new_vreg);
+
+    void populate_interference_graph(Cfg *cfg);
     void allocate_registers(Cfg *cfg);
+    void spill(Cfg *cfg, VirtualRegister vreg);
+    auto emit_assembler() -> std::vector<instruction::Line>;
 
   private:
     ast::Program program;
@@ -68,10 +75,12 @@ class LirEmitter {
 
     VirtualRegister next_vregister_id = 1;
     uint64_t next_label_id = 0;
+    uint64_t next_memory_location = 0;
     std::string current_source = "";
 
     Cfg *cfg;
     RegisterInterferenceGraph interference_graph;
+    std::vector<instruction::Register> assigned_registers;
 
     static constexpr auto main_label = "MAIN";
     static constexpr VirtualRegister regA = 0;
