@@ -252,12 +252,66 @@ void Emitter::emit_assignment(const ast::Assignment &assignment) {
     switch (binary.op.token_type) {
     case TokenType::Plus: {
         gen_comment('+');
+        if (std::holds_alternative<ast::Num>(binary.rhs)) {
+            const auto number = std::get<ast::Num>(binary.rhs);
+            auto value = std::stoull(number.lexeme);
+
+            set_accumulator(binary.lhs);
+            if (value <= 5) {
+                for (auto i = 0u; i < value; i++) {
+                    emit_line(Inc{Register::A});
+                }
+            }
+            set_memory(assignment.identifier);
+            return;
+        }
+
+        if (std::holds_alternative<ast::Num>(binary.lhs)) {
+            const auto number = std::get<ast::Num>(binary.lhs);
+            auto value = std::stoull(number.lexeme);
+
+            set_accumulator(binary.rhs);
+            if (value <= 5) {
+                for (auto i = 0u; i < value; i++) {
+                    emit_line(Inc{Register::A});
+                }
+            }
+            set_memory(assignment.identifier);
+            return;
+        }
         set_register(Register::C, binary.rhs);
         set_accumulator(binary.lhs);
         emit_line(Add{Register::C});
     } break;
     case TokenType::Minus:
         gen_comment('-');
+        if (std::holds_alternative<ast::Num>(binary.rhs)) {
+            const auto number = std::get<ast::Num>(binary.rhs);
+            auto value = std::stoull(number.lexeme);
+
+            set_accumulator(binary.lhs);
+            if (value <= 5) {
+                for (auto i = 0u; i < value; i++) {
+                    emit_line(Dec{Register::A});
+                }
+            }
+            set_memory(assignment.identifier);
+            return;
+        }
+
+        if (std::holds_alternative<ast::Num>(binary.lhs)) {
+            const auto number = std::get<ast::Num>(binary.lhs);
+            auto value = std::stoull(number.lexeme);
+
+            set_accumulator(binary.rhs);
+            if (value <= 5) {
+                for (auto i = 0u; i < value; i++) {
+                    emit_line(Dec{Register::A});
+                }
+            }
+            set_memory(assignment.identifier);
+            return;
+        }
         set_register(Register::C, binary.rhs);
         set_accumulator(binary.lhs);
         emit_line(Sub{Register::C});
@@ -267,6 +321,34 @@ void Emitter::emit_assignment(const ast::Assignment &assignment) {
         // Register C <- a
         // Register D <- b
         // Register F <- acc
+        if (std::holds_alternative<ast::Num>(binary.rhs)) {
+            const auto number = std::get<ast::Num>(binary.rhs);
+            auto value = std::stoull(number.lexeme);
+
+            set_accumulator(binary.lhs);
+            if (value % 2 == 0) {
+                while (value >>= 1) {
+                    emit_line(Shl{Register::A});
+                }
+            }
+            set_memory(assignment.identifier);
+            return;
+        }
+
+        if (std::holds_alternative<ast::Num>(binary.lhs)) {
+            const auto number = std::get<ast::Num>(binary.lhs);
+            auto value = std::stoull(number.lexeme);
+
+            set_accumulator(binary.rhs);
+            if (value % 2 == 0) {
+                while (value >>= 1) {
+                    emit_line(Shl{Register::A});
+                }
+            }
+            set_memory(assignment.identifier);
+            return;
+        }
+
         set_register(Register::C, binary.lhs);
         set_register(Register::D, binary.rhs);
 
@@ -296,6 +378,34 @@ void Emitter::emit_assignment(const ast::Assignment &assignment) {
     } break;
     case TokenType::Slash: {
         gen_comment('/');
+        if (std::holds_alternative<ast::Num>(binary.rhs)) {
+            const auto number = std::get<ast::Num>(binary.rhs);
+            auto value = std::stoull(number.lexeme);
+
+            set_accumulator(binary.lhs);
+            if (value % 2 == 0) {
+                while (value >>= 1) {
+                    emit_line(Shr{Register::A});
+                }
+            }
+            set_memory(assignment.identifier);
+            return;
+        }
+
+        if (std::holds_alternative<ast::Num>(binary.lhs)) {
+            const auto number = std::get<ast::Num>(binary.lhs);
+            auto value = std::stoull(number.lexeme);
+
+            set_accumulator(binary.rhs);
+            if (value % 2 == 0) {
+                while (value >>= 1) {
+                    emit_line(Shr{Register::A});
+                }
+            }
+            set_memory(assignment.identifier);
+            return;
+        }
+
         // Register C <- a
         // Register D <- b
         // Register F <- p

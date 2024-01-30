@@ -106,52 +106,53 @@ auto main(int argc, char **argv) -> int {
 
     ast_optimizer.inline_procedures();
 
-    for (const auto &[name, count] : ast_optimizer.procedure_call_counts) {
-        std::cout << name << ": " << count << std::endl;
-    }
+    // for (const auto &[name, count] : ast_optimizer.procedure_call_counts) {
+    //     std::cout << name << ": " << count << std::endl;
+    // }
 
-    auto lir_emitter = lir::LirEmitter(std::move(*program));
-
-    lir_emitter.emit();
-
-    auto instructions = lir_emitter.get_flattened_instructions();
+    // auto lir_emitter = lir::LirEmitter(std::move(*program));
+    //
+    // lir_emitter.emit();
+    //
+    // auto instructions = lir_emitter.get_flattened_instructions();
 
     // for (auto &instruction : instructions) {
     //     std::cout << to_string(instruction) << std::endl;
     // }
 
-    auto cfg_builder = lir::CfgBuilder(instructions);
-
-    auto cfg = cfg_builder.build();
-
-    lir_emitter.allocate_registers(&cfg);
-
-    for (const auto &block : cfg.basic_blocks) {
-        std::cout << block.to_string() << std::endl;
-    }
-
-    auto dot = lir::generate_dot(cfg);
-
-    auto graph_output = std::ofstream("graph.dot");
-
-    graph_output << dot << std::endl;
-
-    graph_output.close();
-
-    // auto emitter = emitter::Emitter(std::move(*program));
+    // auto cfg_builder = lir::CfgBuilder(instructions);
     //
-    // emitter.emit();
+    // auto cfg = cfg_builder.build();
     //
-    // const auto lines = emitter.get_lines();
+    // lir_emitter.allocate_registers(&cfg);
     //
-    // if (emitter.get_errors().size() > 0) {
-    //     display_errors(emitter);
+    // for (const auto &block : cfg.basic_blocks) {
+    //     std::cout << block.to_string() << std::endl;
     // }
-    const auto lines = lir_emitter.emit_assembler();
+    //
+    // auto dot = lir::generate_dot(cfg);
+    //
+    // auto graph_output = std::ofstream("graph.dot");
+    //
+    // graph_output << dot << std::endl;
+    //
+    // graph_output.close();
+    //
+    auto emitter = emitter::Emitter(std::move(*program));
 
-    for (const auto &line : lines) {
-        std::cout << to_string(line.instruction) << std::endl;
+    emitter.emit();
+
+    const auto lines = emitter.get_lines();
+
+    if (emitter.get_errors().size() > 0) {
+        display_errors(emitter);
     }
+
+    // const auto lines = lir_emitter.emit_assembler();
+
+    // for (const auto &line : lines) {
+    //     std::cout << to_string(line.instruction) << std::endl;
+    // }
 
     if (args.output_file) {
         std::ofstream output(*args.output_file);
@@ -167,12 +168,12 @@ auto main(int argc, char **argv) -> int {
         return 0;
     }
 
-    auto read_handler = std::make_unique<ReadHandlerStdin>();
-    auto write_handler = std::make_unique<WriteHandlerStdout<cln::cl_I>>();
-
-    const auto state = run_machine(lines, read_handler.get(), write_handler.get());
-
-    std::cout << "Cost: " << state.t + state.io << std::endl;
+    // auto read_handler = std::make_unique<ReadHandlerStdin>();
+    // auto write_handler = std::make_unique<WriteHandlerStdout<cln::cl_I>>();
+    //
+    // const auto state = run_machine(lines, read_handler.get(), write_handler.get());
+    //
+    // std::cout << "Cost: " << state.t + state.io << std::endl;
 
     return 0;
 }

@@ -67,9 +67,9 @@ void AstOptimizer::inline_procedures() {
     for (auto &procedure : program->procedures) {
         procedures[procedure.name.lexeme] = &procedure;
         for (auto &command : procedure.context.commands) {
-
             std::visit(overloaded{[&](const ast::Call &call) {
-                                      bool should_be_inlined = false;
+                                      bool should_be_inlined = procedure_call_counts[call.name.lexeme] <= 5;
+                                      should_be_inlined |= procedure_costs[call.name.lexeme] <= 5;
                                       // TODO: Find a better way to determine if procedure should be inlined
                                       if (!should_be_inlined) {
                                           return;
