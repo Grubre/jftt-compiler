@@ -87,12 +87,12 @@ void LirEmitter::emit_write(const ast::Write &write) {
 void LirEmitter::emit_condition(const ast::Condition &condition, const std::string &true_label,
                                 const std::string &false_label) {
     const auto lhs_minus_rhs = [&]() {
-        const auto rhs_vreg = put_constant_to_vreg_or_get(condition.rhs);
+        put_constant_to_vreg_or_get(condition.rhs);
         set_vreg(condition.lhs, regA);
         push_instruction(Sub{});
     };
     const auto rhs_minus_lhs = [&]() {
-        const auto rhs_vreg = put_constant_to_vreg_or_get(condition.lhs);
+        put_constant_to_vreg_or_get(condition.lhs);
         set_vreg(condition.rhs, regA);
         push_instruction(Sub{});
     };
@@ -195,7 +195,7 @@ void LirEmitter::put_to_vreg_or_mem(const ast::Identifier &identifier) {
     }
 }
 
-void LirEmitter::get_from_vreg_or_load_from_mem(const ast::Identifier &identifier) {
+auto LirEmitter::get_from_vreg_or_load_from_mem(const ast::Identifier &identifier) -> VirtualRegister {
     const auto variable = get_variable(identifier);
 
     if (!variable.is_pointer) {
@@ -203,9 +203,10 @@ void LirEmitter::get_from_vreg_or_load_from_mem(const ast::Identifier &identifie
     } else {
         push_instruction(Load{variable.vregister_id});
     }
+    return variable.vregister_id;
 }
 
-void LirEmitter::get_from_vreg_or_load_from_mem(const Token &identifier) {
+auto LirEmitter::get_from_vreg_or_load_from_mem(const Token &identifier) -> VirtualRegister {
     const auto variable = get_variable(identifier);
 
     if (!variable.is_pointer) {
@@ -213,6 +214,7 @@ void LirEmitter::get_from_vreg_or_load_from_mem(const Token &identifier) {
     } else {
         push_instruction(Load{variable.vregister_id});
     }
+    return variable.vregister_id;
 }
 
 auto LirEmitter::get_variable(const ast::Identifier &identifier) -> ResolvedVariable {
@@ -239,7 +241,7 @@ void LirEmitter::set_vreg(const ast::Value &value, VirtualRegister vreg) {
 
 void LirEmitter::emit_constant(VirtualRegister vregister, const ast::Num &num) {
     const auto num_value = std::stoull(num.lexeme);
-    
+
     if (num_value == 0) {
         return;
     }
@@ -275,7 +277,7 @@ auto LirEmitter::put_constant_to_vreg_or_get(const ast::Value &value) -> Virtual
         emit_constant(vreg, num);
         return vreg;
     }
-    return get_variable(std::get<ast::Identifier>(value)).vregister_id;
+    return get_from_vreg_or_load_from_mem(std::get<ast::Identifier>(value));
 }
 
 auto LirEmitter::get_label_str(const std::string &label) -> std::string {

@@ -43,8 +43,8 @@ class LirEmitter {
     auto new_vregister() -> VirtualRegister;
     auto get_label_str(const std::string &label) -> std::string;
     void put_to_vreg_or_mem(const ast::Identifier &identifier);
-    void get_from_vreg_or_load_from_mem(const ast::Identifier &identifier);
-    void get_from_vreg_or_load_from_mem(const Token &identifier);
+    auto get_from_vreg_or_load_from_mem(const ast::Identifier &identifier) -> VirtualRegister;
+    auto get_from_vreg_or_load_from_mem(const Token &identifier) -> VirtualRegister;
 
     void set_vreg(const ast::Value &value, VirtualRegister vreg);
     auto put_constant_to_vreg_or_get(const ast::Value &value) -> VirtualRegister;
