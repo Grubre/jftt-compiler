@@ -1,7 +1,42 @@
 #include "low_level_ir_builder.hpp"
 #include "common.hpp"
+#include <iostream>
 
 namespace lir {
+
+void LirEmitter::allocate_registers(Cfg *cfg) {
+    this->cfg = cfg;
+    interference_graph.neighbours.resize(next_vregister_id);
+
+    for (const auto &block : cfg->basic_blocks) {
+        auto alive_registers = block.live_out;
+        for (int i = block.instructions.size() - 1; i >= 0; i--) {
+            const auto &instruction = block.instructions[i];
+            for (const auto overwrite : overwritten_variables(instruction)) {
+                alive_registers.erase(overwrite);
+            }
+            for (const auto read : read_variables(instruction)) {
+                alive_registers.insert(read);
+            }
+        }
+        for (const auto &reg : alive_registers) {
+            for (const auto &alive_reg : alive_registers) {
+                if (reg != alive_reg) {
+                    interference_graph.neighbours[reg].insert(alive_reg);
+                }
+            }
+        }
+    }
+
+    // print the graph
+    for (int i = 0; i < interference_graph.neighbours.size(); i++) {
+        std::cout << "Register " << i << " neighbours: ";
+        for (const auto &neighbour : interference_graph.neighbours[i]) {
+            std::cout << neighbour << ", ";
+        }
+        std::cout << "\n";
+    }
+}
 
 void LirEmitter::emit() {
     for (const auto &procedure : program.procedures) {
@@ -114,10 +149,14 @@ void LirEmitter::emit_condition(const ast::Condition &condition, const std::stri
 
 void LirEmitter::emit_if(const ast::If &if_statement) {
     const auto true_label = get_label_str("IF_TRUE");
-    const auto false_label = get_label_str("IF_FALSE");
+    const auto false_label = get_label_str("ELSE");
     const auto endif_label = get_label_str("ENDIF");
 
-    emit_condition(if_statement.condition, true_label, false_label);
+    if (if_statement.else_commands) {
+        emit_condition(if_statement.condition, true_label, false_label);
+    } else {
+        emit_condition(if_statement.condition, true_label, endif_label);
+    }
 
     emit_commands(if_statement.commands);
     push_instruction(Jump{endif_label});
@@ -281,7 +320,7 @@ auto LirEmitter::put_constant_to_vreg_or_get(const ast::Value &value) -> Virtual
 }
 
 auto LirEmitter::get_label_str(const std::string &label) -> std::string {
-    return std::format("{}#{}", label, next_vregister_id++);
+    return std::format("{}#{}", label, next_label_id++);
 }
 
 auto LirEmitter::get_procedure_codes() -> ProcedureCodes { return instructions; }

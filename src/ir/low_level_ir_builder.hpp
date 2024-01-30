@@ -1,5 +1,6 @@
 #pragma once
 #include "ast.hpp"
+#include "cfg_builder.hpp"
 #include "low_level_ir.hpp"
 
 namespace lir {
@@ -10,6 +11,10 @@ struct ResolvedVariable {
 
 struct Procedure {
     std::vector<VirtualRegister> args;
+};
+
+struct RegisterInterferenceGraph {
+    std::vector<std::set<uint64_t>> neighbours;
 };
 
 class LirEmitter {
@@ -52,6 +57,8 @@ class LirEmitter {
     auto get_procedure_codes() -> ProcedureCodes;
     auto get_flattened_instructions() -> Instructions;
 
+    void allocate_registers(Cfg *cfg);
+
   private:
     ast::Program program;
 
@@ -60,7 +67,11 @@ class LirEmitter {
     ProcedureCodes instructions;
 
     VirtualRegister next_vregister_id = 1;
+    uint64_t next_label_id = 0;
     std::string current_source = "";
+
+    Cfg *cfg;
+    RegisterInterferenceGraph interference_graph;
 
     static constexpr auto main_label = "MAIN";
     static constexpr VirtualRegister regA = 0;

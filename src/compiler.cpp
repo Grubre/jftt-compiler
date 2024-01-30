@@ -110,11 +110,11 @@ auto main(int argc, char **argv) -> int {
         std::cout << name << ": " << count << std::endl;
     }
 
-    auto LirEmitter = lir::LirEmitter(std::move(*program));
+    auto lir_emitter = lir::LirEmitter(std::move(*program));
 
-    LirEmitter.emit();
+    lir_emitter.emit();
 
-    auto instructions = LirEmitter.get_flattened_instructions();
+    auto instructions = lir_emitter.get_flattened_instructions();
 
     // for (auto &instruction : instructions) {
     //     std::cout << to_string(instruction) << std::endl;
@@ -123,6 +123,8 @@ auto main(int argc, char **argv) -> int {
     auto cfg_builder = lir::CfgBuilder(instructions);
 
     auto cfg = cfg_builder.build();
+
+    lir_emitter.allocate_registers(&cfg);
 
     for (const auto &block : cfg.basic_blocks) {
         std::cout << block.to_string() << std::endl;
