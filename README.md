@@ -73,12 +73,19 @@ The bytecode instructions set is as follows:
 | SHL x       | rx ← 2 ∗ rx, k ← k + 1                                    | 1       |
 | SHR x       | rx ← ⌊rx/2⌋, k ← k + 1                                    | 1       |
 | JUMP j      | k ← j                                                     | 1       |
-| JPOS j      | jeśli ra > 0 to k ← j, w p.p. k ← k + 1                   | 1       |
-| JZERO j     | jeśli ra = 0 to k ← j, w p.p. k ← k + 1                   | 1       |
+| JPOS j      | if ra > 0 then k ← j, otherwise k ← k + 1                 | 1       |
+| JZERO j     | if ra = 0 then k ← j, otherwise k ← k + 1                 | 1       |
 | STRK x      | rx ← k, k ← k + 1                                         | 1       |
 | JUMPR x     | k ← rx                                                    | 1       |
-| HALT        | zatrzymaj program                                         | 0       |
+| HALT        | halt the program                                          | 0       |
 
 # Debugger
+A TUI-based tool that allows step-by-step code execution and displays the state of the internally emulated machine.
+#### Usage
+- **n**   - step in
+- **c**   - continue
+- **esc** - exit the program
+- **LMB** - toggle breakpoint
 
+When input is required, the program will focus the console window.
 ![Debugger](./readme/debugger_screenshot.png)
