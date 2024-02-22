@@ -89,3 +89,24 @@ A TUI-based tool that allows step-by-step code execution and displays the state 
 
 When input is required, the program will focus the console window.
 ![Debugger](./readme/debugger_screenshot.png)
+
+# Build
+The project has two git submodules `fmt` and `doctest`. In order to succesfully build it, both of these need to be fetched.
+This can be done when cloning the project with `git clone --recursive` or after cloning it using `git submodule update --init --recursive`.
+
+Building the debugger:
+```bash
+mkdir build
+cd build
+cmake ..
+cmake --build .
+```
+if you want to build the debugger as well, you have to pass the `BUILD_DEBUGGER=On` variable
+when configuring cmake, i.e.
+```bash
+mkdir build
+cd build
+cmake -DBUILD_DEBUGGER=On ..
+cmake --build .
+```
+the executables will be in `./build/src/compiler` and `./build/debugger/debugger`
